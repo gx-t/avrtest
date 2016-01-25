@@ -2,6 +2,7 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/sleep.h>
 #include <util/delay.h>
 
 #define CANDLE_ON_TIME	0x1000;
@@ -20,8 +21,15 @@ static void init() {
 	//    TCCR0B = (1 << CS01);   // clock source = CLK/8, start PWM
 	TCCR0B	= (1 << CS00);   // clock source = CLK/1, start PWM
 	//	TCCR1B = (1 << CS00);   // clock source = CLK/1, start PWM
+	GIMSK |= (1 << PCIE);
+	PCMSK |= (1 << PCINT0);
+	sleep_enable();
+	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+	sei();
 }
 
+ISR(PCINT_vect) {
+}
 
 static void check_coin()
 {
@@ -62,12 +70,17 @@ static uint8_t oscilate() {
 
 static void check_candle_times() {
 	uint8_t i = sizeof(tm) / sizeof(tm[0]);
+	uint8_t cnt = 0;
 	while(i--) {
 		if(tm[i]) {
 			tm[i]--;
+			cnt ++;
 		} else {
 			PORTD |= (1 << i);
 		}
+	}
+	if(!cnt) {
+		sleep_cpu();
 	}
 }
 
