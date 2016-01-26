@@ -8,6 +8,7 @@
 #define CANDLE_ON_TIME	0x1000;
 
 static uint16_t tm[] = {0x100, 0x120, 0x140, 0x160, 0x180, 0x1A0, 0x1B0}; //candle remaining times
+static uint8_t debounce = 0;
 
 static void init() {
 	DDRB	= 0b00000100; //PB2 - output
@@ -23,19 +24,12 @@ static void init() {
 	//	TCCR1B = (1 << CS00);   // clock source = CLK/1, start PWM
 	GIMSK |= (1 << PCIE);
 	PCMSK |= (1 << PCINT0);
-	sleep_enable();
-	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-	sei();
+	MCUCR |= (1 << SE) | (1 << SM0);  //sleep enable, power down mode
+	asm("sei");  //enable interrupts
 }
 
 ISR(PCINT_vect) {
-}
-
-static void check_coin()
-{
-	static uint8_t debounce = 0x00;
 	if(debounce) {
-		debounce --;
 		return;
 	}
 	if(PINB & 0b00000001) {
@@ -80,7 +74,7 @@ static void check_candle_times() {
 		}
 	}
 	if(!cnt) {
-		sleep_cpu();
+		asm("sleep");
 	}
 }
 
@@ -91,7 +85,9 @@ int main(void)
 	while(1) {
 		OCR0A = oscilate(); //PWM duty
 		check_candle_times();
-		check_coin();
+		if(debounce) {
+			debounce --;
+		}
 //		OCR1A = val;
 	}
 	return 0;
