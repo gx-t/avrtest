@@ -22,8 +22,8 @@ static void init() {
 	//    TCCR0B = (1 << CS01);   // clock source = CLK/8, start PWM
 	TCCR0B	= (1 << CS00);   // clock source = CLK/1, start PWM
 	//	TCCR1B = (1 << CS00);   // clock source = CLK/1, start PWM
-	GIMSK |= (1 << PCIE);
-	PCMSK |= (1 << PCINT0);
+	GIMSK |= (1 << PCIE);  //pin change interrupt enable
+	PCMSK |= (1 << PCINT0);  //pin change interrupt 0 (PB0)
 	MCUCR |= (1 << SE) | (1 << SM0);  //sleep enable, power down mode
 	asm("sei");  //enable interrupts
 }
@@ -78,7 +78,7 @@ static void check_candle_times() {
 	}
 }
 
-int main(void)
+int main()
 {
 	init();
 	//program main loop
