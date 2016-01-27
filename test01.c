@@ -1,11 +1,11 @@
-#define F_CPU 1000000UL
+#define F_CPU 128000UL
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <util/delay.h>
 
-#define CANDLE_ON_TIME	0x1000;
+#define CANDLE_ON_TIME	0xFFFF;
 
 static uint16_t tm[] = {0x100, 0x120, 0x140, 0x160, 0x180, 0x1A0, 0x1B0}; //candle remaining times
 static uint8_t debounce = 0;
@@ -47,19 +47,17 @@ ISR(PCINT_vect) {
 }
 
 static uint8_t oscilate() {
-	static float s[] = {0.0, 0.0, 0.0, 0.0, 0.0}; //sines
-	static float c[] = {1.0, 1.0, 1.0, 1.0, 1.0}; //cosines
-	static float f[] = {0.05, 0.06, 0.075, 0.087, 0.09}; //frequencies
-	uint8_t i = sizeof(s) / sizeof(s[0]);
-	float res = 0;
-	//harmonic synthesis ;)
-	while(i--) {
-		c[i] -= s[i] * f[i];
-		s[i] += c[i] * f[i];
-		res += s[i];
-	}
-	res /= sizeof(s) / sizeof(s[0]);
-	return 126 * (res + 1);
+	static int8_t s1 = 0, s2 = 0, s3 = 0, s4 = 0;
+	static int8_t c1 = 100, c2 = 100, c3 = 100, c4 = 100;
+	s1 += c1 / 10;
+	c1 -= s1 / 10;
+	s2 += c2 / 12;
+	c2 -= s2 / 12;
+	s3 += c3 / 20;
+	c3 -= s3 / 20;
+	s4 += c4 / 21;
+	c4 -= s4 / 21;
+	return ((s1 + s2 + s2 + s4) >> 2) + 127;
 }
 
 static void check_candle_times() {

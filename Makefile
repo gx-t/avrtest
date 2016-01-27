@@ -10,7 +10,7 @@ test01:
 	avr-gcc -mmcu=attiny2313 -Werror -Os -s test01.c -o test01.elf
 	avr-objcopy -j .text -j .data -O ihex test01.elf test01.hex
 	rm *.elf
-	avrdude -c USBASP -p t2313 -U flash:w:test01.hex -U lfuse:w:0x64:m
+	avrdude -c USBASP -p t2313 -U flash:w:test01.hex -U lfuse:w:0xe6:m
 
 tags:
 	ctags -R . /usr/lib/avr/include/
