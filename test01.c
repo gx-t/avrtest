@@ -40,7 +40,6 @@ ISR(PCINT_vect) {
 	while(i--) {
 		if(!tm[i]) {
 			tm[i] = CANDLE_ON_TIME;
-			PORTD &= ~(1 << i);
 			break;
 		}
 	}
@@ -67,6 +66,7 @@ static void check_candle_times() {
 		if(tm[i]) {
 			tm[i]--;
 			cnt ++;
+			PORTD &= ~(1 << i);
 		} else {
 			PORTD |= (1 << i);
 		}
