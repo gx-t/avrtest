@@ -1,10 +1,4 @@
-#define F_CPU 128000UL
-//http://www.engbedded.com/fusecalc/
-//128Khz
-//avrdude -c USBASP -p t2313 -U lfuse:w:0xe6:m
-
-//default (8Mhz/8):
-//avrdude -c USBASP -p t2313 -U lfuse:w:0x64:m
+#define F_CPU 4000000L
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -23,26 +17,14 @@ ISR(TIMER0_COMPA_vect)
 	}
 }
 
-static void flash(uint8_t time) {
-	uint8_t i;
-	while(time--) {
-		for(i = 0; i < 7; i ++) {
-			PORTB = b[i];
-			PORTD = ~(0b1 << i);
-			_delay_ms(1);
-			PORTD = 0b1111111;
-		}
-	}
-}
-
 int main (void)
 {
-	uint8_t i, j;
+	uint8_t i, j, rep, rep1;
 	PORTB = 0x0;
     DDRB = 0xff;
     DDRD = 0b1111111;
 	PORTD = 0b1111111;
-	OCR0A  = 0x01;
+	OCR0A  = 0xff;
 	TCCR0A = 0x02;
 	TIFR |= 0x01;
 	TIMSK = 0x01;
@@ -50,11 +32,116 @@ int main (void)
 	sei();
     while(1) 
 	{
-		for(j = 0; j < 7; j ++) {
-			for(i = 0; i < 8; i ++) {
-				b[j] = 1 << i;
-				__builtin_avr_delay_cycles(50);
-				b[j] = 0;
+		rep1 = 2;
+		while(rep1 --) {
+			for(rep = 0; rep < 4; rep ++) {
+				for(j = 0; j < 7; j ++) {
+					for(i = 0; i < 8; i ++) {
+						b[j] = 1 << i;
+						__builtin_avr_delay_cycles(20000);
+						b[j] = 0;
+					}
+				}
+			}
+			while(rep --) {
+				j = 7;
+				while(j --) {
+					i = 8;
+					while(i --) {
+						b[j] = 1 << i;
+						__builtin_avr_delay_cycles(20000);
+						b[j] = 0;
+					}
+				}
+			}
+		}
+
+		rep1 = 2;
+		while(rep1 --) {
+			rep = 8;
+			while(rep --) {
+				for(i = 0; i < 8; i ++) {
+					b[0] = b[1] = b[2] = b[3] = b[4] = b[5] = b[6] = 1 << i;
+					__builtin_avr_delay_cycles(100000);
+					b[0] = b[1] = b[2] = b[3] = b[4] = b[5] = b[6] = 0;
+				}
+			}
+			rep = 8;
+			while(rep --) {
+				i = 8;
+				while(i --) {
+					b[0] = b[1] = b[2] = b[3] = b[4] = b[5] = b[6] = 1 << i;
+					__builtin_avr_delay_cycles(100000);
+					b[0] = b[1] = b[2] = b[3] = b[4] = b[5] = b[6] = 0;
+				}
+			}
+		}
+
+		rep = 4;
+		while(rep --) {
+			for(j = 0; j < 7; j ++) {
+				for(i = 0; i < 8; i ++) {
+					b[j] |= 1 << i;
+					__builtin_avr_delay_cycles(20000);
+				}
+			}
+			while(j --) {
+				i = 8;
+				while(i --) {
+					b[j] &= ~(1 << i);
+					__builtin_avr_delay_cycles(20000);
+				}
+			}
+		}
+
+		rep = 4;
+		while(rep --) {
+			j = 7;
+			while(j --) {
+				i = 8;
+				while(i --)  {
+					b[j] |= 1 << i;
+					__builtin_avr_delay_cycles(20000);
+				}
+			}
+			for(j = 0; j < 7; j ++)  {
+				for(i = 0; i < 8; i ++) {
+					b[j] &= ~(1 << i);
+					__builtin_avr_delay_cycles(20000);
+				}
+			}
+		}
+
+		rep1 = 2;
+		while(rep1 --) {
+			rep = 4;
+			while(rep --) {
+				for(i = 0; i < 8; i ++) {
+					b[6] |= 1 << i;
+					b[0] = b[1] = b[2] = b[3] = b[4] = b[5] = b[6];
+					__builtin_avr_delay_cycles(100000);
+				}
+				i = 8;
+				while(i --) {
+					b[6] &= ~(1 << i);
+					b[0] = b[1] = b[2] = b[3] = b[4] = b[5] = b[6];
+					__builtin_avr_delay_cycles(100000);
+				}
+			}
+
+			rep = 4;
+			while(rep --) {
+				i = 8;
+				while(i --) {
+					b[6] |= 1 << i;
+					b[0] = b[1] = b[2] = b[3] = b[4] = b[5] = b[6];
+					__builtin_avr_delay_cycles(100000);
+				}
+				for(i = 0; i < 8; i ++) {
+					b[6] &= ~(1 << i);
+					b[0] = b[1] = b[2] = b[3] = b[4] = b[5] = b[6];
+					__builtin_avr_delay_cycles(100000);
+				}
 			}
 		}
 	}
