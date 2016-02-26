@@ -12,8 +12,7 @@
 */
 
 static uint8_t b[7];
-ISR(TIMER0_COMPA_vect)
-{
+ISR(TIMER0_COMPA_vect) {
 	static uint8_t i = 0;
 	PORTD = 0b1111111;
 	PORTB = b[i];
@@ -147,8 +146,7 @@ static void fill_s_bi() {
 	}
 }
 
-int main (void)
-{
+int main (void) {
 	uint8_t i;
 	sys_init();
     while(1) {
