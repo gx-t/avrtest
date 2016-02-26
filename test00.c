@@ -151,8 +151,7 @@ int main (void)
 {
 	uint8_t i;
 	sys_init();
-    while(1) 
-	{
+    while(1) {
 		fast_bi();
 		i = 2;
 		while(i --) {
