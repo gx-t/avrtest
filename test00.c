@@ -38,7 +38,7 @@ ISR(TIMER0_COMPA_vect) {
 	}
 }
 
-static void ff_s_l() {
+static void fast_s_l() {
 	uint8_t rep = 8;
 	while(rep --) {
 		uint8_t i;
@@ -50,7 +50,7 @@ static void ff_s_l() {
 	}
 }
 
-static void ff_s_r() {
+static void fast_s_r() {
 	uint8_t rep = 8;
 	while(rep --) {
 		uint8_t i = 8;
@@ -59,14 +59,6 @@ static void ff_s_r() {
 			__builtin_avr_delay_cycles(100000);
 			b[0] = b[1] = b[2] = b[3] = b[4] = b[5] = b[6] = 0;
 		}
-	}
-}
-
-static void ff_s_bi() {
-	uint8_t i = 2;
-	while(i --) {
-		ff_s_l();
-		ff_s_r();
 	}
 }
 
@@ -96,14 +88,6 @@ static void fast_r() {
 				b[j] = 0;
 			}
 		}
-	}
-}
-
-static void fast_bi() {
-	uint8_t i = 2;
-	while(i --) {
-		fast_l();
-		fast_r();
 	}
 }
 
@@ -187,19 +171,23 @@ static void fill_s_r() {
 int main (void) {
 	sys_init();
     while(1) {
-		fast_bi();
-		ff_s_bi();
+		fast_l();
+		fast_r();
+		fast_s_l();
+		fast_s_r();
 		fill_l();
-		ff_s_l();
+		fast_s_l();
 		fill_r();
-		ff_s_r();
+		fast_s_r();
 		fill_s_l();
-		ff_s_l();
+		fast_s_l();
 		fill_s_r();
-		ff_s_r();
+		fast_s_r();
 
-		fast_bi();
-		ff_s_bi();
+		fast_l();
+		fast_r();
+		fast_s_l();
+		fast_s_r();
 		fast_l();
 		fill_l();
 		fast_r();
