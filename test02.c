@@ -33,7 +33,7 @@ ISR(PCINT_vect) {
 int main()
 {
 	static int8_t s1 = 0, s2 = 0, s3 = 0, s4 = 0;
-	static int8_t c1 = 100, c2 = 100, c3 = 100, c4 = 100;
+	static int8_t c1 = 120, c2 = 120, c3 = 120, c4 = 120;
 	sys_init();
 	while(1) {
 		s1 += c1 / 10;
