@@ -6,9 +6,9 @@
 #include <util/delay.h>
 
 static void sys_init() {
-	DDRB	= 0b00001100; //PB2, PB3 - output
+	DDRB	= 0b00001100;
 	PORTB	= 0b00000001; //pull-up on PB0
-	DDRD	= 0b01100000; //PORTD 0-6 output
+	DDRD	= 0b01100000;
 	PORTD	= 0b00000000; //PD5-6 low (LEDs on), pull-ups off
 	TCCR0A	= (1 << COM0A1) | (1 << WGM00);  // phase correct PWM mode
 	TCCR1A	= (1 << COM0A1) | (1 << WGM00);  // phase correct PWM mode
