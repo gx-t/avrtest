@@ -9,7 +9,7 @@ static void sys_init() {
 	DDRB	= 0b00001100;
 	PORTB	= 0b00000001; //pull-up on PB0
 	DDRD	= 0b01100000;
-	PORTD	= 0b00000000; //PD5-6 low (LEDs on), pull-ups off
+	PORTD	= 0b01100000; //PD5-6 low (LEDs off), pull-ups off
 	TCCR0A	= (1 << COM0A1) | (1 << WGM00);  // phase correct PWM mode
 	TCCR1A	= (1 << COM0A1) | (1 << WGM00);  // phase correct PWM mode
 	OCR0A	= 0x00;                          // initial PWM pulse width
@@ -24,10 +24,12 @@ static void sys_init() {
 
 static uint8_t run = 0;
 
+//!! No software debouncing, capacitor parallel to switch is required
 ISR(PCINT_vect) {
 	if(PINB & 0b00000001) {
 		run = !run;
 	}
+	PORTD = run ? 0b00000000:0b01100000;
 }
 
 int main()

@@ -5,12 +5,28 @@
 #include <avr/sleep.h>
 #include <util/delay.h>
 
+/*
+	"Digital Candels" with coin payment
+	
+	PD0 -LED0+ PB2
+	PD1 -LED1+ PB2
+	PD2 -LED2+ PB2
+	PD3 -LED3+ PB2
+	PD4 -LED4+ PB2
+	PD5 -LED5+ PB2
+	PD6 -LED6+ PB2
+
+	PB0 <coin> GND
+	VCC 3V GND
+*/
+
 #define CANDLE_ON_TIME	0xFFFF;
 
-static uint16_t tm[] = {0x100, 0x120, 0x140, 0x160, 0x180, 0x1A0, 0x1B0}; //candle remaining times
+//Candles on remaining times. On POR short, demonstration on.
+static uint16_t tm[] = {0x100, 0x120, 0x140, 0x160, 0x180, 0x1A0, 0x1B0};
 static uint8_t debounce = 0;
 
-static void init() {
+static void sys_init() {
 	DDRB	= 0b00000100; //PB2 - output
 	PORTB	= 0b00000001; //pull-up on PB0
 	DDRD	= 0b01111111; //PORTD 0-6 output
@@ -78,7 +94,7 @@ static void check_candle_times() {
 
 int main()
 {
-	init();
+	sys_init();
 	//program main loop
 	while(1) {
 		OCR0A = oscilate(); //PWM duty

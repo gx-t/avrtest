@@ -18,7 +18,7 @@ test02:
 	rm *.elf
 	avrdude -c USBASP -p t2313 -U flash:w:test02.hex -U lfuse:w:0xe6:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
 
-tags:
+tags: *.c
 	ctags -R . /usr/lib/avr/include/
 
 clean:

@@ -5,10 +5,10 @@
 #include <util/delay.h>
 
 /*
-	7 x 8 LED matrix
-	PORTD0-6 LED -
-	PORTB0-7 LED +
-	Battery LiIon (3.6V)
+	7 x 8 LED (Vf=3.5@20ma) matrix
+	PD0-6 - LED[0-6][0-7] + PB0-7 
+	VCC +3.6 (LiIon)- GND
+	Brown-out 2.7V
 */
 
 static void sys_init() {
