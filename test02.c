@@ -5,6 +5,16 @@
 #include <avr/sleep.h>
 #include <util/delay.h>
 
+/*
+Two candles effect
+PD5 -LED+ PB3
+PD6 -LED+ PB2
+PB0 _/_ GND
+PB0 0.1uF(debounce) GND
+VCC 3V(Li, CR2032) GND
+VCC 0.1uF GND
+*/
+
 static void sys_init() {
 	DDRB	= 0b00001100;
 	PORTB	= 0b00000001; //pull-up on PB0
