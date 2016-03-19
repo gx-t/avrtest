@@ -18,6 +18,12 @@ test02:
 	rm *.elf
 	avrdude -c USBASP -p t2313 -U flash:w:test02.hex -U lfuse:w:0xe6:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
 
+test03:
+	avr-gcc -mmcu=attiny2313 -Werror -Os -s test03.c -o test03.elf
+	avr-objcopy -j .text -j .data -O ihex test03.elf test03.hex
+	rm *.elf
+	avrdude -c USBASP -p t2313 -U flash:w:test03.hex -U lfuse:w:0xe6:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
+
 tags: *.c
 	ctags -R . /usr/lib/avr/include/
 
