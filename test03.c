@@ -68,7 +68,7 @@ static void long_wait() {
 	uint8_t i = 120;
 	while(i-- && run) {
 		test_button();
-		_delay_ms(1000);
+		asm("sleep");
 	}
 }
 
@@ -79,7 +79,6 @@ int main()
 	while(1) {
 		test_button();
 		asm("sleep");
-		asm("wdr");
 		if(!(PIND & 1) || !run) {
 			// ambient light
 			continue;
