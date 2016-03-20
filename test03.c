@@ -13,11 +13,11 @@ Permannent 2 min light on hand gesture in front of flashing LEDs
 Press button until short flashes begin and release it to switch on/off
 (Long press will switch on/off/on continuously)
 
-PD4 +LED- GND
-PD5 +LED- GND
-PD0 2M VCC
-PD0 Rf GND
-PB0 _/_ GND
+PD0 +LED- GND
+PD1 +LED- GND
+PD6 5M VCC
+PD6 Rf GND
+PB5 _/_ GND
 VCC 0.68uF GND
 
 LEDs - white leds with concentrators
@@ -30,11 +30,8 @@ Consumes < 10uA when off or under ambient light (not flashing)
 static uint8_t run = 1;
 
 static void sys_init() {
-	DDRB	= 0b00000000;
-	DDRD	= 0b00110000;
-	//pull-up on PB0
-	PORTB	= 0b00000001;
-	PORTD	= 0b00000000;
+	DDRD	= 0b00000011;
+	PORTD	= 0b00100000;
 	asm("cli");
 	//sleep enable, power down mode
 	MCUCR |= (1 << SE) | (1 << SM0);
@@ -52,15 +49,15 @@ ISR(WDT_OVERFLOW_vect)
 static void flash_fast_16() {
 	uint8_t i = 16;
 	while(i --) {
-		PORTD = 0b00110000;
+		PORTD = 0b00100011;
 		_delay_ms(50);
-		PORTD = 0b00000000;
+		PORTD = 0b00100000;
 		_delay_ms(50);
 	}
 }
 
 static void process_button_down() {
-	if(PINB & 0b00000001) {
+	if(PIND & 0b00100000) {
 		return;
 	}
 	//if btn pressed
@@ -83,17 +80,17 @@ int main()
 	while(1) {
 		process_button_down();
 		asm("sleep");
-		if(!(PIND & 1) || !run) {
+		if(!(PIND & 0b01000000) || !run) {
 			// ambient light
 			continue;
 		}
-		PORTD = 0b00110000;
+		PORTD = 0b00100011;
 		_delay_ms(50);
-		if(!(PIND & 1)) {
+		if(!(PIND & 0b01000000)) {
 			// reflected light
 			long_wait();
 		}
-		PORTD = 0b00000000;
+		PORTD = 0b00100000;
 	}
 	return 0;
 }
