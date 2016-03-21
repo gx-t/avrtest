@@ -30,7 +30,7 @@ static void sys_init() {
 	GIMSK	|= (1 << PCIE);  //pin change interrupt enable
 	PCMSK	|= (1 << PCINT0);  //pin change interrupt 0 (PB0)
 	MCUCR	|= (1 << SE) | (1 << SM0);  //sleep enable, power down mode
-	asm("sei");  //enable interrupts
+	sei();  //enable interrupts
 }
 
 static uint8_t run = 0;
@@ -60,7 +60,7 @@ int main()
 		OCR0A = ((s1 + s2 + s2 + s4) >> 2) + 127;
 		OCR1A = ((c1 + c2 + c2 + c4) >> 2) + 127;
 		if(!run) {
-			asm("sleep");
+			sleep_cpu();
 		}
 	}
 	return 0;

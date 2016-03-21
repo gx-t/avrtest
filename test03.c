@@ -31,13 +31,13 @@ static uint8_t run = 1;
 static void sys_init() {
 	DDRD	= 0b00000011;
 	PORTD	= 0b00100000;
-	asm("cli");
+	cli();
 	//sleep enable, power down mode
 	MCUCR |= (1 << SE) | (1 << SM0);
 	wdt_reset();
 	//enable WDT interrupt mode, 1 sec period
 	WDTCSR = (1 << WDIE) | (1 << WDCE) | (1 << WDP2) | (1 << WDP1); 
-	asm("sei");
+	sei();
 }
 
 //Watchdog timeout ISR

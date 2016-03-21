@@ -41,7 +41,7 @@ static void sys_init() {
 	GIMSK |= (1 << PCIE);  //pin change interrupt enable
 	PCMSK |= (1 << PCINT0);  //pin change interrupt 0 (PB0)
 	MCUCR |= (1 << SE) | (1 << SM0);  //sleep enable, power down mode
-	asm("sei");  //enable interrupts
+	sei();  //enable interrupts
 }
 
 ISR(PCINT_vect) {
@@ -88,7 +88,7 @@ static void check_candle_times() {
 		}
 	}
 	if(!cnt) {
-		asm("sleep");
+		sleep_cpu();
 	}
 }
 
