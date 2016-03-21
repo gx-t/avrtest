@@ -10,8 +10,7 @@ Battery powered emergency light
 Fast 16 short flashes when battery is just connected and when switching on/off
 Short single flashes when dark
 Permannent 2 min light on hand gesture in front of flashing LEDs
-Press button until short flashes begin and release it to switch on/off
-(Long press will switch on/off/on continuously)
+Press button until short flashes begin and release to switch on/off (2/3 short pulses)
 
 PD0 +LED- GND
 PD1 +LED- GND
@@ -35,7 +34,7 @@ static void sys_init() {
 	asm("cli");
 	//sleep enable, power down mode
 	MCUCR |= (1 << SE) | (1 << SM0);
-	asm("wdr");
+	wdt_reset();
 	//enable WDT interrupt mode, 1 sec period
 	WDTCSR = (1 << WDIE) | (1 << WDCE) | (1 << WDP2) | (1 << WDP1); 
 	asm("sei");
@@ -46,9 +45,8 @@ ISR(WDT_OVERFLOW_vect)
 {
 }
 
-static void flash_fast_16() {
-	uint8_t i = 16;
-	while(i --) {
+static void flash_fast(uint8_t count) {
+	while(count --) {
 		PORTD = 0b00100011;
 		_delay_ms(50);
 		PORTD = 0b00100000;
@@ -60,26 +58,33 @@ static void process_button_down() {
 	if(PIND & 0b00100000) {
 		return;
 	}
-	//if btn pressed
-	flash_fast_16();
+	while(!(PIND & 0b00100000)) {
+		PORTD = 0b00100011;
+		_delay_ms(50);
+		PORTD = 0b00100000;
+		_delay_ms(50);
+	}
 	run = !run;
+	_delay_ms(1000);
+	flash_fast(run ? 2:5);
 }
 
 static void long_wait() {
 	uint8_t i = 120;
 	while(i-- && run) {
 		process_button_down();
-		asm("sleep");
+		sleep_cpu();
 	}
 }
 
 int main()
 {
 	sys_init();
-	flash_fast_16();
+	flash_fast(16);
 	while(1) {
 		process_button_down();
-		asm("sleep");
+		sleep_cpu();
+		wdt_reset();
 		if(!(PIND & 0b01000000) || !run) {
 			// ambient light
 			continue;
