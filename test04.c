@@ -18,10 +18,11 @@
 #define CLK_1			0b0100
 
 static void sys_init() {
+	//disable interrupts
+	cli();
+
 	PORTD	= DAT_0 | CLK_0;
-	PORTB	= 0;
 	DDRD	= DAT_OUT;
-	DDRB	= 0b1111; //LCD data bits
 
 	//Baud rate 57600
 	UBRRL = 0;
@@ -32,6 +33,20 @@ static void sys_init() {
 
 	//8 data bits, 1 stop bit
 	UCSRC = (1 << UCSZ1) | (1 << UCSZ0);
+	
+	//timer count to
+	OCR0A  = 0xff;
+	//timer CTC mode
+	TCCR0A = 0x02;
+	//clear interrupt flag
+	TIFR |= 0x01;
+	//TC0 compare match A interrupt enable
+	TIMSK = 0x01;
+	//clock source CLK/1024
+	TCCR0B = 0x05;
+
+	//enable interrupts
+	sei();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -99,6 +114,14 @@ static void p_str(const char* pp) {
 	while(*pp) {
 		uart_tx(*pp++);
 	}
+}
+
+static void p_line(const char* pp) {
+	while(*pp) {
+		uart_tx(*pp++);
+	}
+	uart_tx('\r');
+	uart_tx('\n');
 }
 
 static char* read_line() {
@@ -210,8 +233,7 @@ static char* fixed_02_to_ascii(int x) {
     return pp;
 }
 
-static uint16_t sht1x_read(uint8_t addr) {
-	uint16_t data;
+static void sht1x_start(uint8_t addr) {
 	DDRD = DAT_OUT;
 
 	//init sensor
@@ -227,49 +249,76 @@ static uint16_t sht1x_read(uint8_t addr) {
 
 	DDRD = DAT_IN;
 	PORTD = DAT_1 | CLK_1;
-	p_str((PIND & DAT_1) ? "nack1 " : "ack1 ");
+//	p_str((PIND & DAT_1) ? "nack1 " : "ack1 ");
 	PORTD = DAT_1 | CLK_0;
-	asm("nop");
-	p_str((PIND & DAT_1) ? "ack2 " : "nack2 ");
+}
 
-	while(PIND & DAT_1);
-
+static uint16_t sht1x_read() {
+	uint16_t data;
 	data = sht1x_read_byte(1);
 	sht1x_ack();
 	data <<= 8;
 	data |= sht1x_read_byte(0);
 	sht1x_nack();
-	asm("nop");
-	p_str("\r\n");
 	return data;
 }
 
-static void p_result(float ft, float fh) {
+static uint16_t ut = 0, uh = 0;
+static uint8_t tt = 0;
+
+ISR(TIMER0_COMPA_vect) {
+	switch(tt++) {
+		case 0:
+			sht1x_start(0b00000011);
+			break;
+		case 4:
+			ut = sht1x_read();
+			sht1x_start(0b00000101);
+			break;
+		case 6:
+			uh = sht1x_read();
+			break;
+		case 32:
+			tt = 0;
+			break;
+	}
+}
+
+static void sht1x_print() {
     const float c1=-2.0468;
     const float c2=+0.0367;
     const float c3=-0.0000015955;
     const float t1=+0.01;
     const float t2=+0.00008;
+	float ft = ut;
+	float fh = uh;
 
 	ft = ft * 0.01 - 40.1;
-	p_str(fixed_02_to_ascii_2(ft * 100));
-	p_str("; ");
+	p_str("Temp.\t= ");
+	p_line(fixed_02_to_ascii_2(ft * 100));
 	fh = (ft - 25) * (t1 + t2 * fh) + c3 * fh * fh + c2 * fh + c1;
 	fh *= 100;
-	p_str(fixed_02_to_ascii_2(fh));
+	p_str("Hum.\t= ");
+	p_line(fixed_02_to_ascii_2(fh));
 	p_str("\r\n");
-
-
 }
 
 int main()
 {
 	sys_init();
+	
 	while(1) {
-		uint8_t ch = uart_rx();
+		p_line("Cmd:\ns - sht1x read temp./hum.\r\n");
+		uart_tx('>');
 
-		if(ch == 's') {
-			p_result(sht1x_read(0b00000011), sht1x_read(0b00000101));
+		switch(uart_rx()) {
+			case 's':
+				p_line("sht1x temp./hum.:");
+				sht1x_print();
+				break;
+			default:
+				p_line("Invalid command.");
+				break;
 		}
 	}
 	return 0;
