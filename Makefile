@@ -28,7 +28,19 @@ test04:
 	avr-gcc -mmcu=attiny2313 -Werror -Os -s test04.c -o test04.elf
 	avr-objcopy -j .text -j .data -O ihex test04.elf test04.hex
 	rm *.elf
-	avrdude -c USBASP -p t2313 -U flash:w:test04.hex -U lfuse:w:0x64:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
+	avrdude -c USBASP -p t2313 -U flash:w:test04.hex -U lfuse:w:0xc4:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
+
+test05:
+	avr-gcc -mmcu=attiny2313 -Werror -Os -s test05.c -o test05.elf
+	avr-objcopy -j .text -j .data -O ihex test05.elf test05.hex
+	rm *.elf
+	avrdude -c USBASP -p t2313 -U flash:w:test05.hex -U lfuse:w:0x64:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m
+
+client_rel:
+	gcc -O2 -Werror -s client.c -o client
+
+client_deb:
+	gcc -g -Werror client.c -o client
 
 tags: *.c
 	ctags -R . /usr/lib/avr/include/

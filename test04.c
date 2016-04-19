@@ -1,4 +1,4 @@
-#define F_CPU 1000000UL
+#define F_CPU 8000000UL
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
@@ -18,45 +18,30 @@
 #define CLK_1			0b0100
 
 static void sys_init() {
-	//disable interrupts
-	cli();
+	DDRD = 0b1100;
 
-	PORTD	= DAT_0 | CLK_0;
-	DDRD	= DAT_OUT;
-
-	//Baud rate 57600
+	//Baud rate 57600 for 1 MHZ, 460800 for 8MHZ
 	UBRRL = 0;
 	UBRRH = 0;
-
-	//Enable UART
-	UCSRB = (1 << RXEN) | (1 << TXEN);
 
 	//8 data bits, 1 stop bit
 	UCSRC = (1 << UCSZ1) | (1 << UCSZ0);
 	
-	//timer count to
-	OCR0A  = 0xff;
-	//timer CTC mode
-	TCCR0A = 0x02;
-	//clear interrupt flag
-	TIFR |= 0x01;
-	//TC0 compare match A interrupt enable
-	TIMSK = 0x01;
-	//clock source CLK/1024
-	TCCR0B = 0x05;
-
-	//enable interrupts
+	cli();
+	//sleep enable, power down mode
+	MCUCR |= (1 << SE) | (1 << SM0);
+	wdt_reset();
+	//enable WDT interrupt mode, 1 sec period
+	WDTCSR = (1 << WDIE) | (1 << WDCE) | (1 << WDP2) | (1 << WDP1); 
 	sei();
 }
 
-///////////////////////////////////////////////////////////////////////////////
-static uint8_t uart_rx()
+//Watchdog timeout ISR
+ISR(WDT_OVERFLOW_vect)
 {
-	while(!(UCSRA & (1 << RXC)));
-
-	return UDR;
 }
 
+///////////////////////////////////////////////////////////////////////////////
 static void uart_tx(uint8_t data)
 {
 	while (!(UCSRA & (1 << UDRE)));
@@ -69,8 +54,6 @@ static void p_uint8(uint8_t val) {
 		'0', '1', '2', '3', '4', '5', '6', '7',
 		'8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
 	};
-	uart_tx('0');
-	uart_tx('x');
 
 	uart_tx(xx[(val >> 4) & 0b1111]);
 	uart_tx(xx[(val >> 0) & 0b1111]);
@@ -82,13 +65,12 @@ static void p_uint16(uint16_t val) {
 		'0', '1', '2', '3', '4', '5', '6', '7',
 		'8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
 	};
-	uart_tx('0');
-	uart_tx('x');
 
 	uart_tx(xx[(val >> 12) & 0b1111]);
 	uart_tx(xx[(val >> 8) & 0b1111]);
 	uart_tx(xx[(val >> 4) & 0b1111]);
 	uart_tx(xx[(val >> 0) & 0b1111]);
+	uart_tx(' ');
 }
 
 static void p_uint32(uint32_t val) {
@@ -110,33 +92,8 @@ static void p_uint32(uint32_t val) {
 	uart_tx(' ');
 }
 
-static void p_str(const char* pp) {
-	while(*pp) {
-		uart_tx(*pp++);
-	}
-}
-
-static void p_line(const char* pp) {
-	while(*pp) {
-		uart_tx(*pp++);
-	}
-	uart_tx('\r');
-	uart_tx('\n');
-}
-
-static char* read_line() {
-	static char buff[32];
-	char* pp = buff;
-	char* end = pp + 31;
-	uint8_t sz = sizeof(buff) - 1;
-	for(; '\r' != (*pp = uart_rx()) && pp != end; pp ++) {
-		uart_tx(*pp);
-	}
-	p_str("\r\n");
-	*pp = 0;
-	return buff;
-}
-
+///////////////////////////////////////////////////////////////////////////////
+//sht1x
 static void sht1x_write_byte(uint8_t dat) {
 	uint8_t i = 8;
 	while(i --) {
@@ -172,67 +129,6 @@ static void sht1x_nack() {
 	PORTD = DAT_1 | CLK_0;
 }
 
-static char* fixed_02_to_ascii_2(int x) {
-	uint8_t sign = x < 0;
-    static char buff[8];
-    char* pp = &buff[7];
-	*pp = 0;
-	if(sign) {
-		x = -x;
-	}
-	*--pp = '0' + x % 10;
-	x /= 10;
-	*--pp = '0' + x % 10;
-	*--pp = '.';
-	x /= 10;
-	*--pp = '0' + x % 10;
-	x /= 10;
-	*--pp = '0' + x % 10;
-	if(sign) {
-		*--pp = '-';
-	}
-    return pp;
-}
-
-static char* fixed_02_to_ascii_1(int x) {
-    static char buff[16];
-    char* pp = &buff[15];
-	*pp-- = 0;
-	*pp-- = '0' + x % 10;
-	x /= 10;
-	*pp-- = '0' + x % 10;
-	x /= 10;
-	*pp -- = '.';
-	*pp = '0' + x % 10;
-	x /= 10;
-    while(x) {
-		*--pp = '0' + x % 10;
-		x /= 10;
-    }
-    return pp;
-}
-
-static char* fixed_02_to_ascii(int x) {
-    static char buff[16];
-    char* pp = &buff[15];
-    pp[0]  = 0;
-    pp[-3] = '.';
-    while(x) {
-        pp --;
-        if(pp != &buff[12]) {
-            *pp = '0' + x % 10;
-            x /= 10;
-        }
-    }
-    while(pp > &buff[11]) {
-        --pp;
-        if(pp != &buff[12]) {
-            *pp = '0';
-        }
-    }
-    return pp;
-}
-
 static void sht1x_start(uint8_t addr) {
 	DDRD = DAT_OUT;
 
@@ -263,63 +159,52 @@ static uint16_t sht1x_read() {
 	return data;
 }
 
-static uint16_t ut = 0, uh = 0;
-static uint8_t tt = 0;
+static uint16_t sht1x_ut = 0, sht1x_uh = 0;
 
-ISR(TIMER0_COMPA_vect) {
-	switch(tt++) {
-		case 0:
-			sht1x_start(0b00000011);
-			break;
-		case 4:
-			ut = sht1x_read();
-			sht1x_start(0b00000101);
-			break;
-		case 6:
-			uh = sht1x_read();
-			break;
-		case 32:
-			tt = 0;
-			break;
-	}
-}
+//func, inst, cnt, val
 
 static void sht1x_print() {
-    const float c1=-2.0468;
-    const float c2=+0.0367;
-    const float c3=-0.0000015955;
-    const float t1=+0.01;
-    const float t2=+0.00008;
-	float ft = ut;
-	float fh = uh;
+	static uint16_t sht1x_tt = 0;
 
-	ft = ft * 0.01 - 40.1;
-	p_str("Temp.\t= ");
-	p_line(fixed_02_to_ascii_2(ft * 100));
-	fh = (ft - 25) * (t1 + t2 * fh) + c3 * fh * fh + c2 * fh + c1;
-	fh *= 100;
-	p_str("Hum.\t= ");
-	p_line(fixed_02_to_ascii_2(fh));
-	p_str("\r\n");
+	//function
+	p_uint8(0);
+	//instance
+	p_uint8(0);
+	//counter
+	p_uint16(sht1x_tt);
+	//temperature
+	p_uint16(sht1x_ut);
+	//humidity
+	p_uint16(sht1x_uh);
+	uart_tx('\n');
+	sht1x_tt ++;
 }
 
 int main()
 {
 	sys_init();
-	
-	while(1) {
-		p_line("Cmd:\ns - sht1x read temp./hum.\r\n");
-		uart_tx('>');
 
-		switch(uart_rx()) {
-			case 's':
-				p_line("sht1x temp./hum.:");
-				sht1x_print();
+	uint8_t tt = 0;
+
+	while(1) {
+		switch(tt++) {
+			case 0:
+				sht1x_start(0b00000011);
 				break;
-			default:
-				p_line("Invalid command.");
+			case 1:
+				sht1x_ut = sht1x_read();
+				sht1x_start(0b00000101);
+				break;
+			case 3:
+				sht1x_uh = sht1x_read();
+				UCSRB |= (1 << TXEN);
+				sht1x_print();
+				_delay_us(30);
+				UCSRB &= ~(1 << TXEN);
+				tt = 0;
 				break;
 		}
+		sleep_cpu();
 	}
 	return 0;
 }
