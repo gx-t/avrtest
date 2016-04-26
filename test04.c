@@ -28,17 +28,11 @@ static void sys_init() {
 	UCSRC = (1 << UCSZ1) | (1 << UCSZ0);
 	
 	cli();
-	//sleep enable, power down mode
-	MCUCR |= (1 << SE) | (1 << SM0);
-	wdt_reset();
-	//enable WDT interrupt mode, 1 sec period
-	WDTCSR = (1 << WDIE) | (1 << WDCE) | (1 << WDP2) | (1 << WDP1); 
+	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+	
+	//Enable UART and interrupt on receive
+	UCSRB = (1 << RXEN) | (1 << TXEN) | (1 << RXCIE);
 	sei();
-}
-
-//Watchdog timeout ISR
-ISR(WDT_OVERFLOW_vect)
-{
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -48,48 +42,35 @@ static void uart_tx(uint8_t data)
 	UDR = data;
 }
 
+static uint8_t uart_rx()
+{
+	while(!(UCSRA & (1 << RXC)));
+
+	return UDR;
+}
+
+ISR(USART_RX_vect)
+{
+}
+
 ///////////////////////////////////////////////////////////////////////////////
-static void p_uint8(uint8_t val) {
+static void p_nibble(uint8_t val) {
 	static const xx[] = {
 		'0', '1', '2', '3', '4', '5', '6', '7',
 		'8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
 	};
+	val &= 0b1111;
+	uart_tx(xx[val]);
+}
 
-	uart_tx(xx[(val >> 4) & 0b1111]);
-	uart_tx(xx[(val >> 0) & 0b1111]);
-	uart_tx(' ');
+static void p_uint8(uint8_t val) {
+	p_nibble(val >> 4);
+	p_nibble(val >> 0);
 }
 
 static void p_uint16(uint16_t val) {
-	static const xx[] = {
-		'0', '1', '2', '3', '4', '5', '6', '7',
-		'8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-	};
-
-	uart_tx(xx[(val >> 12) & 0b1111]);
-	uart_tx(xx[(val >> 8) & 0b1111]);
-	uart_tx(xx[(val >> 4) & 0b1111]);
-	uart_tx(xx[(val >> 0) & 0b1111]);
-	uart_tx(' ');
-}
-
-static void p_uint32(uint32_t val) {
-	static const xx[] = {
-		'0', '1', '2', '3', '4', '5', '6', '7',
-		'8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-	};
-	uart_tx('0');
-	uart_tx('x');
-
-	uart_tx(xx[(val >> 24) & 0b1111]);
-	uart_tx(xx[(val >> 24) & 0b1111]);
-	uart_tx(xx[(val >> 20) & 0b1111]);
-	uart_tx(xx[(val >> 16) & 0b1111]);
-	uart_tx(xx[(val >> 12) & 0b1111]);
-	uart_tx(xx[(val >> 8) & 0b1111]);
-	uart_tx(xx[(val >> 4) & 0b1111]);
-	uart_tx(xx[(val >> 0) & 0b1111]);
-	uart_tx(' ');
+	p_uint8(val >> 8);
+	p_uint8(val >> 0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -111,7 +92,7 @@ static uint8_t sht1x_read_byte() {
 	while(i --) {
 		data <<= 1;
 		PORTD = DAT_1 | CLK_1;
-		data |= !!(PIND & 0b1000);
+		data |= !!(PIND & DAT_1);
 		PORTD = DAT_1 | CLK_0;
 	}
 	return data;
@@ -159,23 +140,34 @@ static uint16_t sht1x_read() {
 	return data;
 }
 
+static uint8_t sht1x_wait_result() {
+	while(PIND & DAT_1);
+}
+
 static uint16_t sht1x_ut = 0, sht1x_uh = 0;
 
 //func, inst, cnt, val
 
 static void sht1x_print() {
 	static uint16_t sht1x_tt = 0;
-
+	//start
+	uart_tx('$');
+	uart_tx(' ');
 	//function
 	p_uint8(0);
+	uart_tx(' ');
 	//instance
 	p_uint8(0);
+	uart_tx(' ');
 	//counter
 	p_uint16(sht1x_tt);
+	uart_tx(' ');
 	//temperature
 	p_uint16(sht1x_ut);
+	uart_tx(' ');
 	//humidity
 	p_uint16(sht1x_uh);
+	uart_tx('\r');
 	uart_tx('\n');
 	sht1x_tt ++;
 }
@@ -184,27 +176,20 @@ int main()
 {
 	sys_init();
 
-	uint8_t tt = 0;
-
 	while(1) {
-		switch(tt++) {
-			case 0:
+		sleep_cpu();
+		if(UCSRA & (1 << RXC)) {
+			uint8_t ch = UDR;
+			if(ch == 'r') {
 				sht1x_start(0b00000011);
-				break;
-			case 1:
+				sht1x_wait_result();
 				sht1x_ut = sht1x_read();
 				sht1x_start(0b00000101);
-				break;
-			case 3:
+				sht1x_wait_result();
 				sht1x_uh = sht1x_read();
-				UCSRB |= (1 << TXEN);
 				sht1x_print();
-				_delay_us(30);
-				UCSRB &= ~(1 << TXEN);
-				tt = 0;
-				break;
+			}
 		}
-		sleep_cpu();
 	}
 	return 0;
 }

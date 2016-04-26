@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
 
-
 static void sht1x_data(const char* data) {
 	uint32_t inst = -1, cnt = -1, temp = -1, hum = -1;
 	if(4 != sscanf(data, "%x %x %x %x", &inst, &cnt, &temp, &hum)) {
@@ -31,11 +30,16 @@ int main() {
 	char  buff[256];
 	while(fgets(buff, sizeof(buff), stdin)) {
 		uint32_t func = -1;
-		sscanf(buff, "%02x", &func);
+		char* pp = buff;
+		if(*pp ++ != '$' || *pp ++ != ' ') {
+			continue;
+		}
+		sscanf(pp, "%02x", &func);
 		if(func > 0) {
 			continue;
 		}
-		func_arr[func](buff + 3);
+		pp += 3;
+		func_arr[func](pp);
 	}
 	return 0;
 }
