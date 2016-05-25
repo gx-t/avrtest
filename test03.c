@@ -20,8 +20,8 @@ PB5 _/_ GND
 VCC 0.68uF GND
 
 LEDs - white leds with concentrators
-Rf - photoresistor (2MOhm at switch point)
-VCC - 4Vx4AH lead-acid (low-high temperature)
+Rf - photoresistor (4MOhm on switch point)
+VCC - 3xAA Alkaline
 Brown-out detector 2.7V
 Consumes < 10uA when off or under ambient light (not flashing)
 */
