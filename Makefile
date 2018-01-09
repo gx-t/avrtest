@@ -36,6 +36,12 @@ all:
 	rm *.elf
 	avrdude -c USBASP -p m328p -U flash:w:test05.hex -U lfuse:w:0xc2:m 
 
+06:
+	avr-gcc -mmcu=atmega328p -Werror -Os -s test06.c -o test06.elf
+	avr-objcopy -j .text -j .data -O ihex test06.elf test06.hex
+	rm *.elf
+	avrdude -c USBASP -p m328p -U flash:w:test06.hex -U lfuse:w:0xc2:m 
+
 client_rel:
 	gcc -O2 -Werror -s client.c -o client
 

@@ -15,7 +15,7 @@ ATMEGA 328P
 static void rtc_init(void)
 {  
 	TCCR2A = 0x00;  //overflow
-	TCCR2B = 0x05;  //5 gives 1 sec. prescale 
+	TCCR2B = 0x03;  //5 gives 1 sec. prescale 
 	TIMSK2 = 0x01;  //enable timer2A overflow interrupt
 	ASSR  = 0x20;   //enable asynchronous mode
 }
@@ -65,81 +65,33 @@ ISR(USART_RX_vect)
 {
 }
 
-struct {
-	uint8_t s0 : 4;
-	uint8_t s1 : 4;
-	uint8_t m0 : 4;
-	uint8_t m1 : 4;
-	uint8_t h0 : 4;
-	uint8_t h1 : 4;
-	uint8_t d0 : 4;
-	uint8_t d1 : 4;
-} static tm = {0};
+static char val[] = {'0', '0', '0', '0', '0', '0', '0', 0};
 
-static void reset_time()
+static void reset_val()
 {
-    tm.s0 = 0;
-    tm.s1 = 0;
-    tm.m0 = 0;
-    tm.m1 = 0;
-    tm.h0 = 0;
-    tm.h1 = 0;
-    tm.d0 = 0;
-    tm.d1 = 0;
+    char *p = val;
+    while(*p) {
+        *p ++ = '0';
+    }
     TCNT2 = 0; //zero RTC counter
 }
 
-static void update_time()
+static void update_val()
 {
-	if(++tm.s0 == 10) {
-		tm.s0 = 0;
-		if(++tm.s1 == 6) {
-			tm.s1 = 0;
-			if(++tm.m0 == 10) {
-				tm.m0 = 0;
-				if(++tm.m1 == 6) {
-					tm.m1 = 0;
-					if(++tm.h0 == 10) {
-						tm.h0 = 0;
-						++tm.h1;
-					}
-					else if(tm.h0 == 4 && tm.h1 == 2) {
-						tm.h0 = 0;
-						tm.h1 = 0;
-						if(++tm.d0 == 10) {
-							tm.d0 = 0;
-							if(++tm.d1 == 10) {
-								tm.d1 = 0;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+    char* p = val + sizeof(val) - 2;
+    while(p >= val) {
+        if('9' >= ++(*p))
+            break;
+        *p -- = '0';
+    }
 }
 
 ISR(TIMER2_OVF_vect)
 {
 }
 
-static void p_time() {
-	static const num_arr[] = {
-		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
-	};
-	uart_tx(num_arr[tm.d1]);
-	uart_tx(num_arr[tm.d0]);
-	uart_tx(':');
-	uart_tx(num_arr[tm.h1]);
-	uart_tx(num_arr[tm.h0]);
-	uart_tx(':');
-	uart_tx(num_arr[tm.m1]);
-	uart_tx(num_arr[tm.m0]);
-	uart_tx(':');
-	uart_tx(num_arr[tm.s1]);
-	uart_tx(num_arr[tm.s0]);
-	uart_tx('\r');
-	uart_tx('\n');
+static void p_val() {
+    p_line(val);
 }
 
 static void sys_init() {
@@ -148,6 +100,7 @@ static void sys_init() {
 	sleep_enable();
 	uart_init();
 	rtc_init();
+    reset_val();
 	sei();
 }
 
@@ -158,16 +111,16 @@ int main(void) {
 		if(UCSR0A & (1 << RXC0)) {
 			uint8_t ch = UDR0;
 			if(ch == '\r') {
-                p_line("RTC reset");
-                reset_time();
+                p_line("Value reset");
+                reset_val();
 			}
             else {
-                p_line("Press <ENTER> to reset RTC");
+                p_line("Press <ENTER> to reset the value");
             }
 		}
 		else {
-            update_time();
-			p_time();
+            update_val();
+			p_val();
 		}
 	} 
 
