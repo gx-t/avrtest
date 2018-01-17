@@ -13,13 +13,10 @@
    Serial in/out
  */
 
-// RST, CE, DC, DIN, CLK
+///////////////////////////////////////////////////////////////////////////////
+//LCD
 
-#define RST     (1 << 5)
-#define CE      (1 << 4)
-#define DC      (1 << 3)
-#define DIN     (1 << 2)
-#define CLK     (1 << 1)
+// RST, CE, DC, DIN, CLK
 
 static void lcd_write_cmd(uint8_t cmd)
 {
@@ -61,43 +58,24 @@ static void lcd_init()
     PORTC = 0b000000;
     _delay_ms(10);
     PORTC = 0b100000;
-	lcd_write_cmd(0x21);
-	lcd_write_cmd(0x13);
-	lcd_write_cmd(0x06);
-	lcd_write_cmd(0xC2);
-	lcd_write_cmd(0x20);
-	lcd_write_cmd(0x09);
+    lcd_write_cmd(0x21);
+    lcd_write_cmd(0x13);
+    lcd_write_cmd(0x06);
+    lcd_write_cmd(0xC2);
+    lcd_write_cmd(0x20);
+    lcd_write_cmd(0x09);
 
-	/* Clear LCD RAM */
-	lcd_write_cmd(0x80);
-	lcd_write_cmd(0x40);
+    /* Clear LCD RAM */
+    lcd_write_cmd(0x80);
+    lcd_write_cmd(0x40);
 
-	/* Activate LCD */
-	lcd_write_cmd(0x08);
-	lcd_write_cmd(0x0C);
+    /* Activate LCD */
+    lcd_write_cmd(0x08);
+    lcd_write_cmd(0x0C);
 }
 
-static int16_t start = 0;
-static int8_t incr = 1;
-
-static void lcd_render()
-{
-    uint16_t i = 504;
-    uint8_t pix = 0;
-	for (i = 0; i < 504; i++) {
-        pix = 0;
-        if(i > start && i < start + 50) {
-            pix = 0b11111111;
-        }
-        lcd_write_data(pix);
-    }
-    start += incr;
-    if(start < 0 || start + 50 > 504) {
-        incr = -incr;
-        start += incr;
-    }
-}
-
+///////////////////////////////////////////////////////////////////////////////
+//RTC
 
 static void rtc_init(void)
 {  
@@ -108,6 +86,8 @@ static void rtc_init(void)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+//UART
+
 #define USART_BAUD 38400UL
 #define USART_UBBR_VALUE ((F_CPU / (USART_BAUD << 4)) - 1)
 
@@ -190,16 +170,49 @@ static void sys_init()
     cli();
     set_sleep_mode(SLEEP_MODE_IDLE);
     sleep_enable();
+    lcd_init();
     uart_init();
     rtc_init();
     reset_val();
     sei();
 }
 
+static void draw_cols(uint8_t x, uint8_t y, uint8_t* pix, uint8_t col_x)
+{
+    uint8_t col1_x = col_x - 100;
+    if(2 == y) {
+        if((col_x - 5 < x && col_x + 5 > x) || (col1_x - 5 < x && col1_x + 5 > x) ) {
+            *pix = 0b10000001;
+        }
+    }
+    else {
+        if((col_x - 4 < x && col_x + 4 > x) || (col1_x - 4 < x && col1_x + 4 > x)) {
+            *pix = 0b11111111;
+        }
+    }
+}
+
+static void draw(uint8_t col_x)
+{
+    uint8_t x, y, pix;
+    for(y = 0; y < 6; y ++) {
+        for(x = 0; x < 84; x ++) {
+            pix = 0;
+            draw_cols(x, y, &pix, col_x);
+            lcd_write_data(pix);
+        }
+    }
+}
+
+static void update_scene(uint8_t* col_x)
+{
+    (*col_x) -= 1;
+}
+
 int main(void)
 {
+    uint8_t col_x = 100;
     sys_init();
-    lcd_init();
     while(1) {
         sleep_cpu();
         if(UCSR0A & (1 << RXC0)) {
@@ -215,7 +228,8 @@ int main(void)
         else {
             update_val();
             p_val();
-            lcd_render();
+            draw(col_x);
+            update_scene(&col_x);
         }
     } 
 
