@@ -52,7 +52,6 @@ static void lcd_write_data(uint8_t data)
 
 static void lcd_init()
 {
-    uint16_t i = 504;
     // RST, CE, DC, DIN, CLK, 0
     DDRC = 0b111110;
     PORTC = 0b000000;
@@ -177,41 +176,46 @@ static void sys_init()
     sei();
 }
 
-static void draw_cols(uint8_t x, uint8_t y, uint8_t* pix, uint8_t col_x)
+struct COLUMN {
+    uint8_t x, hole_y;
+};
+
+static void draw_cols(uint8_t x, uint8_t y, uint8_t* pix, struct COLUMN* col)
 {
-    uint8_t col1_x = col_x - 100;
-    if(2 == y) {
-        if((col_x - 5 < x && col_x + 5 > x) || (col1_x - 5 < x && col1_x + 5 > x) ) {
+    if(col->hole_y == y) {
+        if(col->x - 5 < x && col->x + 5 > x) {
             *pix = 0b10000001;
         }
     }
     else {
-        if((col_x - 4 < x && col_x + 4 > x) || (col1_x - 4 < x && col1_x + 4 > x)) {
+        if(col->x - 4 < x && col->x + 4 > x) {
             *pix = 0b11111111;
         }
     }
 }
 
-static void draw(uint8_t col_x)
+static void draw(struct COLUMN* col)
 {
     uint8_t x, y, pix;
     for(y = 0; y < 6; y ++) {
         for(x = 0; x < 84; x ++) {
             pix = 0;
-            draw_cols(x, y, &pix, col_x);
+            draw_cols(x, y, &pix, col);
             lcd_write_data(pix);
         }
     }
 }
 
-static void update_scene(uint8_t* col_x)
+static void update_scene(struct COLUMN* col)
 {
-    (*col_x) -= 1;
+    col->x--;
+    if(col->x > 83)
+        col->x = 83;
 }
 
 int main(void)
 {
-    uint8_t col_x = 100;
+    struct COLUMN col = {42, 2};
     sys_init();
     while(1) {
         sleep_cpu();
@@ -228,11 +232,10 @@ int main(void)
         else {
             update_val();
             p_val();
-            draw(col_x);
-            update_scene(&col_x);
+            draw(&col);
+            update_scene(&col);
         }
     } 
-
-    return 1;
+    return 0;
 }
 
