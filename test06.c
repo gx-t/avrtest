@@ -53,24 +53,16 @@ static void lcd_write_data(uint8_t data)
 static void lcd_init()
 {
     // RST, CE, DC, DIN, CLK, 0
+    uint8_t i, init_seq[] = {
+        0x21, 0x13, 0x06, 0xC2, 0x20, 0x09, 0x80, 0x40, 0x08, 0x0C
+    };
     DDRC = 0b111110;
     PORTC = 0b000000;
     _delay_ms(10);
     PORTC = 0b100000;
-    lcd_write_cmd(0x21);
-    lcd_write_cmd(0x13);
-    lcd_write_cmd(0x06);
-    lcd_write_cmd(0xC2);
-    lcd_write_cmd(0x20);
-    lcd_write_cmd(0x09);
-
-    /* Clear LCD RAM */
-    lcd_write_cmd(0x80);
-    lcd_write_cmd(0x40);
-
-    /* Activate LCD */
-    lcd_write_cmd(0x08);
-    lcd_write_cmd(0x0C);
+    for(i = 0; i < sizeof(init_seq); i ++) {
+        lcd_write_cmd(init_seq[i]);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -209,13 +201,14 @@ static void draw(struct COLUMN* col)
 static void update_scene(struct COLUMN* col)
 {
     col->x--;
-    if(col->x > 83)
+    if(col->x > 83) {
         col->x = 83;
+    }
 }
 
 int main(void)
 {
-    struct COLUMN col = {42, 2};
+    struct COLUMN col = {83, 2};
     sys_init();
     while(1) {
         sleep_cpu();
