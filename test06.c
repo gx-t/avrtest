@@ -174,13 +174,24 @@ struct COLUMN {
 
 static void draw_cols(uint8_t x, uint8_t y, uint8_t* pix, struct COLUMN* col)
 {
-    if(col->hole_y == y) {
-        if(col->x - 5 < x && col->x + 5 > x) {
+    if(col[0].hole_y == y) {
+        if(col[0].x - 5 < x && col[0].x + 5 > x) {
             *pix = 0b10000001;
         }
     }
     else {
-        if(col->x - 4 < x && col->x + 4 > x) {
+        if(col[0].x - 4 < x && col[0].x + 4 > x) {
+            *pix = 0b11111111;
+        }
+    }
+
+    if(col[1].hole_y == y) {
+        if(col[1].x - 5 < x && col[1].x + 5 > x) {
+            *pix = 0b10000001;
+        }
+    }
+    else {
+        if(col[1].x - 4 < x && col[1].x + 4 > x) {
             *pix = 0b11111111;
         }
     }
@@ -188,7 +199,7 @@ static void draw_cols(uint8_t x, uint8_t y, uint8_t* pix, struct COLUMN* col)
 
 static void draw_bird(uint8_t x, uint8_t y, uint8_t* pix)
 {
-    if(y == 2 && (0 < x && 8 > x))
+    if(y == 2 && (6 < x && 14 > x))
         *pix |= 0b00111100;
 }
 
@@ -217,16 +228,23 @@ static uint8_t rand_6()
 
 static void update_scene(struct COLUMN* col)
 {
-    col->x--;
-    if(col->x > 83) {
-        col->x = 83;
-        col->hole_y = rand_6();
+    col[0].x--;
+    if(col[0].x > 83) {
+        col[0].x = 83;
+        col[0].hole_y = rand_6();
     }
+
+    col[1].x--;
+    if(col[1].x > 83) {
+        col[1].x = 83;
+        col[1].hole_y = rand_6();
+    }
+
 }
 
 int main(void)
 {
-    struct COLUMN col = {83, 2};
+    struct COLUMN col[] = {83, 2, 41, 2};
     sys_init();
     while(1) {
         sleep_cpu();
@@ -243,8 +261,8 @@ int main(void)
         else {
             update_val();
             p_val();
-            draw(&col);
-            update_scene(&col);
+            draw(col);
+            update_scene(col);
         }
     } 
     return 0;
