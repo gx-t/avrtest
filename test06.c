@@ -186,6 +186,12 @@ static void draw_cols(uint8_t x, uint8_t y, uint8_t* pix, struct COLUMN* col)
     }
 }
 
+static void draw_bird(uint8_t x, uint8_t y, uint8_t* pix)
+{
+    if(y == 2 && (0 < x && 8 > x))
+        *pix |= 0b00111100;
+}
+
 static void draw(struct COLUMN* col)
 {
     uint8_t x, y, pix;
@@ -193,9 +199,20 @@ static void draw(struct COLUMN* col)
         for(x = 0; x < 84; x ++) {
             pix = 0;
             draw_cols(x, y, &pix, col);
+            draw_bird(x, y, &pix);
             lcd_write_data(pix);
         }
     }
+}
+
+static uint8_t rand_6()
+{
+    static const uint8_t tbl[] = {0, 5, 6, 7, 1, 3, 2, 4};
+    static uint8_t val = 0xFF;
+    static uint8_t cnt = 0;
+    val = tbl[(val ^ cnt) & 0b111];
+    cnt ++;
+    return val % 6;
 }
 
 static void update_scene(struct COLUMN* col)
@@ -203,6 +220,7 @@ static void update_scene(struct COLUMN* col)
     col->x--;
     if(col->x > 83) {
         col->x = 83;
+        col->hole_y = rand_6();
     }
 }
 
