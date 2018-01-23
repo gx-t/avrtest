@@ -172,6 +172,10 @@ struct COLUMN {
     uint8_t x, hole_y;
 };
 
+struct BIRD {
+    uint8_t y;
+};
+
 static void draw_cols(uint8_t x, uint8_t y, uint8_t* pix, struct COLUMN* col)
 {
     if(col[0].hole_y == y) {
@@ -197,20 +201,35 @@ static void draw_cols(uint8_t x, uint8_t y, uint8_t* pix, struct COLUMN* col)
     }
 }
 
-static void draw_bird(uint8_t x, uint8_t y, uint8_t* pix)
+static void draw_bird(uint8_t x, uint8_t y, uint8_t* pix, struct BIRD* bird)
 {
-    if(y == 2 && (6 < x && 14 > x))
-        *pix |= 0b00111100;
+    union {
+        uint16_t u16;
+        uint8_t u8[2];
+    } mask = {.u16 = 0b0000000000111100};
+
+    if(y == bird->y >> 3) {
+        if(6 < x && 14 > x) {
+            mask.u16 <<= (bird->y % 8);
+            *pix |= mask.u8[0];
+        }
+    }
+    if(y - 1 == bird->y >> 3) {
+        if(6 < x && 14 > x) {
+            mask.u16 <<= (bird->y % 8);
+            *pix |= mask.u8[1];
+        }
+    }
 }
 
-static void draw(struct COLUMN* col)
+static void draw(struct COLUMN* col, struct BIRD* bird)
 {
     uint8_t x, y, pix;
     for(y = 0; y < 6; y ++) {
         for(x = 0; x < 84; x ++) {
             pix = 0;
             draw_cols(x, y, &pix, col);
-            draw_bird(x, y, &pix);
+            draw_bird(x, y, &pix, bird);
             lcd_write_data(pix);
         }
     }
@@ -221,12 +240,11 @@ static uint8_t rand_6()
     static const uint8_t tbl[] = {0, 5, 6, 7, 1, 3, 2, 4};
     static uint8_t val = 0xFF;
     static uint8_t cnt = 0;
-    val = tbl[(val ^ cnt) & 0b111];
-    cnt ++;
-    return val % 6;
+    val = tbl[(val ^ cnt ++) & 0b111];
+    return 1 + (val >> 1);
 }
 
-static void update_scene(struct COLUMN* col)
+static void update_scene(struct COLUMN* col, struct BIRD* bird)
 {
     col[0].x--;
     if(col[0].x > 83) {
@@ -240,11 +258,20 @@ static void update_scene(struct COLUMN* col)
         col[1].hole_y = rand_6();
     }
 
+    uint8_t yy = bird->y >> 3;
+    if(yy == col[0].hole_y || yy == col[1].hole_y)
+        return;
+
+    bird->y ++;
+    if(bird->y > 41) {
+        bird->y = 0;
+    }
 }
 
 int main(void)
 {
-    struct COLUMN col[] = {83, 2, 41, 2};
+    struct COLUMN col[] = {[0].x = 83, [0].hole_y = 2, [1].x = 41, [1].hole_y = 2};
+    struct BIRD bird = {.y = 16};
     sys_init();
     while(1) {
         sleep_cpu();
@@ -261,8 +288,8 @@ int main(void)
         else {
             update_val();
             p_val();
-            draw(col);
-            update_scene(col);
+            draw(col, &bird);
+            update_scene(col, &bird);
         }
     } 
     return 0;
