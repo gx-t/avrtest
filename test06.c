@@ -10,27 +10,27 @@
    Vcc -- 0.068 uF ceramic -- Gnd
    RTC 9 -- 32768 Hz QZ -- 10
    9 -- 32768HZ -- 10
-   Serial in/out
+   23 -- button -- Gnd
  */
 
 ///////////////////////////////////////////////////////////////////////////////
 //LCD
 
-// RST, CE, DC, DIN, CLK
+// RST, CE, DC, DIN, CLK, BTN
 
 static void lcd_write_cmd(uint8_t cmd)
 {
     uint8_t i = 8;
     while(i --) {
         if(cmd & (1 << i)) {
-            PORTC = 0b100100;
-            PORTC = 0b100110;
+            PORTC = 0b100101;
+            PORTC = 0b100111;
         }
         else {
-            PORTC = 0b100000;
-            PORTC = 0b100010;
+            PORTC = 0b100001;
+            PORTC = 0b100011;
         }
-        PORTC = 0b100000;
+        PORTC = 0b100001;
     }
 }
 
@@ -39,27 +39,27 @@ static void lcd_write_data(uint8_t data)
     uint8_t i = 8;
     while(i --) {
         if(data & (1 << i)) {
-            PORTC = 0b101100;
-            PORTC = 0b101110;
+            PORTC = 0b101101;
+            PORTC = 0b101111;
         }
         else {
-            PORTC = 0b101000;
-            PORTC = 0b101010;
+            PORTC = 0b101001;
+            PORTC = 0b101011;
         }
-        PORTC = 0b101000;
+        PORTC = 0b101001;
     }
 }
 
-static void lcd_init()
+static void lcd_and_btn_init()
 {
-    // RST, CE, DC, DIN, CLK, 0
+    // RST, CE, DC, DIN, CLK, BTN
     uint8_t i, init_seq[] = {
         0x21, 0x13, 0x06, 0xC2, 0x20, 0x09, 0x80, 0x40, 0x08, 0x0C
     };
     DDRC = 0b111110;
-    PORTC = 0b000000;
+    PORTC = 0b000001; //reset
     _delay_ms(10);
-    PORTC = 0b100000;
+    PORTC = 0b100001;
     for(i = 0; i < sizeof(init_seq); i ++) {
         lcd_write_cmd(init_seq[i]);
     }
@@ -77,54 +77,7 @@ static void rtc_init(void)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-//UART
-
-#define USART_BAUD 38400UL
-#define USART_UBBR_VALUE ((F_CPU / (USART_BAUD << 4)) - 1)
-
-static void uart_init()
-{
-    UBRR0H = (uint8_t) (USART_UBBR_VALUE >> 8);
-    UBRR0L = (uint8_t) USART_UBBR_VALUE;
-
-    UCSR0A = 0;
-
-
-    //Enable UART
-    UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);
-
-    //8 data bits, 1 stop bit
-    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
-}
-
-static uint8_t uart_rx()
-{
-    while(!(UCSR0A & (1 << RXC0)));
-
-    return UDR0;
-}
-
-static void uart_tx(uint8_t data)
-{
-    while (!(UCSR0A & (1 << UDRE0)));
-    UDR0 = data;
-}
-
-static void p_line(const char* pp)
-{
-    while(*pp) {
-        uart_tx(*pp++);
-    }
-    uart_tx('\r');
-    uart_tx('\n');
-}
-
-///////////////////////////////////////////////////////////////////////////////
 //Interrupts
-ISR(USART_RX_vect)
-{
-}
-
 ISR(TIMER2_OVF_vect)
 {
 }
@@ -161,8 +114,7 @@ static void sys_init()
     cli();
     set_sleep_mode(SLEEP_MODE_IDLE);
     sleep_enable();
-    lcd_init();
-    uart_init();
+    lcd_and_btn_init();
     rtc_init();
     reset_val();
     sei();
@@ -258,12 +210,9 @@ static void update_scene(struct COLUMN* col, struct BIRD* bird)
         col[1].hole_y = rand_6();
     }
 
-    uint8_t yy = bird->y >> 3;
-    if(yy == col[0].hole_y || yy == col[1].hole_y)
-        return;
 
-    bird->y ++;
-    if(bird->y > 41) {
+    bird->y += PINC & 1 ? 1 : -2;
+    if(bird->y > 41 + 4) {
         bird->y = 0;
     }
 }
@@ -274,23 +223,9 @@ int main(void)
     struct BIRD bird = {.y = 16};
     sys_init();
     while(1) {
+        draw(col, &bird);
+        update_scene(col, &bird);
         sleep_cpu();
-        if(UCSR0A & (1 << RXC0)) {
-            uint8_t ch = UDR0;
-            if(ch == '\r') {
-                p_line("Value reset");
-                reset_val();
-            }
-            else {
-                p_line("Press <ENTER> to reset the value");
-            }
-        }
-        else {
-            update_val();
-            p_val();
-            draw(col, &bird);
-            update_scene(col, &bird);
-        }
     } 
     return 0;
 }
