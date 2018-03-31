@@ -55,7 +55,7 @@ static void sys_init()
     PORTC   = 0b01000001; //reset and button pull-up
 
     DDRB    = 0b00101111; //output CLK, MOSI, SS, LCD-DC, LCD-RST
-    SPCR    = (1 << SPE) | (1 << MSTR); //enable SPI-master
+    SPCR    = (1 << SPE) | (1 << MSTR) | (1 << SPI2X); //enable SPI-master, clock/2 speed
 
     cli();
     set_sleep_mode(SLEEP_MODE_IDLE);
