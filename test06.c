@@ -16,21 +16,21 @@
 ///////////////////////////////////////////////////////////////////////////////
 //LCD
 
-// RST, CE, DC, DIN, CLK, BTN
+// RST, RST, CE, DC, DIN, CLK, BTN
 
 static void lcd_write_cmd(uint8_t cmd)
 {
     uint8_t i = 8;
     while(i --) {
         if(cmd & (1 << i)) {
-            PORTC = 0b100101;
-            PORTC = 0b100111;
+            PORTC = 0b1100101;
+            PORTC = 0b1100111;
         }
         else {
-            PORTC = 0b100001;
-            PORTC = 0b100011;
+            PORTC = 0b1100001;
+            PORTC = 0b1100011;
         }
-        PORTC = 0b100001;
+        PORTC = 0b1100001;
     }
 }
 
@@ -39,27 +39,27 @@ static void lcd_write_data(uint8_t data)
     uint8_t i = 8;
     while(i --) {
         if(data & (1 << i)) {
-            PORTC = 0b101101;
-            PORTC = 0b101111;
+            PORTC = 0b1101101;
+            PORTC = 0b1101111;
         }
         else {
-            PORTC = 0b101001;
-            PORTC = 0b101011;
+            PORTC = 0b1101001;
+            PORTC = 0b1101011;
         }
-        PORTC = 0b101001;
+        PORTC = 0b1101001;
     }
 }
 
 static void lcd_and_btn_init()
 {
-    // RST, CE, DC, DIN, CLK, BTN
+    // RST, RST, CE, DC, DIN, CLK, BTN
     uint8_t i, init_seq[] = {
         0x21, 0x13, 0x06, 0xC2, 0x20, 0x09, 0x80, 0x40, 0x08, 0x0C
     };
     DDRC = 0b111110;
-    PORTC = 0b000001; //reset
+    PORTC = 0b1000001; //reset
     _delay_ms(10);
-    PORTC = 0b100001;
+    PORTC = 0b1100001;
     for(i = 0; i < sizeof(init_seq); i ++) {
         lcd_write_cmd(init_seq[i]);
     }
