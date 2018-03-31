@@ -6,67 +6,36 @@
 #include <util/delay.h>
 
 /*
-   ATMEGA 328P
-   Vcc -- 0.068 uF ceramic -- Gnd
-   RTC 9 -- 32768 Hz QZ -- 10
-   9 -- 32768HZ -- 10
-   23 -- button -- Gnd
+   ATMEGA 328P + Nokia5110 LCD
+   PB0 -- LCD-RST
+   PB1 -- LCD-DC
+   PB2 -- LCD-CE
+   PB3 -- LCD-DIN
+   PB4 --
+   PB5 -- LCD-CLK
+   PB6, PB7 -- 32Khz QZ
+
+   PC0, GND -- BTN, internal pull-up
+   PC6(Reset), GND -- 0.01uF C internal pull-up
+
+   VCC, GND -- 0.1uF C
  */
 
-///////////////////////////////////////////////////////////////////////////////
-//LCD
-
-// RST, RST, CE, DC, DIN, CLK, BTN
-
-static void lcd_write_cmd(uint8_t cmd)
+static void lcd_init()
 {
-    uint8_t i = 8;
-    while(i --) {
-        if(cmd & (1 << i)) {
-            PORTC = 0b1100101;
-            PORTC = 0b1100111;
-        }
-        else {
-            PORTC = 0b1100001;
-            PORTC = 0b1100011;
-        }
-        PORTC = 0b1100001;
-    }
-}
-
-static void lcd_write_data(uint8_t data)
-{
-    uint8_t i = 8;
-    while(i --) {
-        if(data & (1 << i)) {
-            PORTC = 0b1101101;
-            PORTC = 0b1101111;
-        }
-        else {
-            PORTC = 0b1101001;
-            PORTC = 0b1101011;
-        }
-        PORTC = 0b1101001;
-    }
-}
-
-static void lcd_and_btn_init()
-{
-    // RST, RST, CE, DC, DIN, CLK, BTN
     uint8_t i, init_seq[] = {
         0x21, 0x13, 0x06, 0xC2, 0x20, 0x09, 0x80, 0x40, 0x08, 0x0C
     };
-    DDRC = 0b111110;
-    PORTC = 0b1000001; //reset
+
+    PORTB = 0b000000; //LCD-RST
     _delay_ms(10);
-    PORTC = 0b1100001;
+    PORTB = 0b000001; //LCD-DC low
+
     for(i = 0; i < sizeof(init_seq); i ++) {
-        lcd_write_cmd(init_seq[i]);
+        SPDR = init_seq[i]; //send to SPI
+        while(!(SPSR & (1 << SPIF))); //wait for write end
     }
 }
-
-///////////////////////////////////////////////////////////////////////////////
-//RTC
 
 static void rtc_init(void)
 {  
@@ -76,47 +45,23 @@ static void rtc_init(void)
     ASSR  = 0x20;   //enable asynchronous mode
 }
 
-///////////////////////////////////////////////////////////////////////////////
-//Interrupts
 ISR(TIMER2_OVF_vect)
 {
 }
 
-///////////////////////////////////////////////////////////////////////////////
-static char val[] = {'0', '0', '0', '0', '0', '0', '0', 0};
-
-static void reset_val()
-{
-    char *p = val;
-    while(*p) {
-        *p ++ = '0';
-    }
-    TCNT2 = 0; //zero RTC counter
-}
-
-static void update_val()
-{
-    char* p = val + sizeof(val) - 2;
-    while(p >= val) {
-        if('9' >= ++(*p))
-            break;
-        *p -- = '0';
-    }
-}
-
-static void p_val()
-{
-    p_line(val);
-}
-
 static void sys_init()
 {
+    DDRC    = 0b00000000;
+    PORTC   = 0b01000001; //reset and button pull-up
+
+    DDRB    = 0b00101111; //output CLK, MOSI, SS, LCD-DC, LCD-RST
+    SPCR    = (1 << SPE) | (1 << MSTR); //enable SPI-master
+
     cli();
     set_sleep_mode(SLEEP_MODE_IDLE);
     sleep_enable();
-    lcd_and_btn_init();
+    lcd_init();
     rtc_init();
-    reset_val();
     sei();
 }
 
@@ -176,15 +121,19 @@ static void draw_bird(uint8_t x, uint8_t y, uint8_t* pix, struct BIRD* bird)
 
 static void draw(struct COLUMN* col, struct BIRD* bird)
 {
+    PORTB = 0b000011; //LCD-CE on, LCD-DC high
     uint8_t x, y, pix;
     for(y = 0; y < 6; y ++) {
         for(x = 0; x < 84; x ++) {
             pix = 0;
             draw_cols(x, y, &pix, col);
             draw_bird(x, y, &pix, bird);
-            lcd_write_data(pix);
+
+            while(!(SPSR & (1 << SPIF))); //wait for prev. write to end
+            SPDR = pix; //send to SPI
         }
     }
+    while(!(SPSR & (1 << SPIF))); //wait for last write to end
 }
 
 static uint8_t rand_6()
@@ -211,7 +160,7 @@ static void update_scene(struct COLUMN* col, struct BIRD* bird)
     }
 
 
-    bird->y += PINC & 1 ? 1 : -2;
+    bird->y += PINC & 1 ? 1 : -2; //check button press
     if(bird->y > 41 + 4) {
         bird->y = 0;
     }
@@ -224,6 +173,7 @@ int main(void)
     sys_init();
     while(1) {
         draw(col, &bird);
+//        PORTB = 0b000111; //LCD-CE off, LCD-DC high - same power consuption - 1.30ma x 3v
         update_scene(col, &bird);
         sleep_cpu();
     } 
