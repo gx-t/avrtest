@@ -73,6 +73,11 @@ static void lcd_init()
     }
 }
 
+static void lcd_set_data_mode()
+{
+    PORTB = 0b000011; //LCD-CE on, LCD-DC high
+}
+
 static void rtc_init(void)
 {  
     TCCR2A = 0x00;  //overflow
@@ -93,6 +98,7 @@ static void sys_init()
     set_sleep_mode(SLEEP_MODE_IDLE);
     sleep_enable();
     lcd_init();
+    lcd_set_data_mode();
     rtc_init();
     sei();
 }
@@ -159,11 +165,11 @@ static void f_0_draw_bird(uint8_t x, uint8_t y, uint8_t* pix, const struct F_0_O
 
 static void f_0_draw(const struct F_0_OBJ* obj)
 {
-    PORTB = 0b000011; //LCD-CE on, LCD-DC high
-    uint8_t x, y, pix;
+    uint8_t y;
     for(y = 0; y < 6; y ++) {
+        uint8_t x;
         for(x = 0; x < 84; x ++) {
-            pix = 0;
+            uint8_t pix = 0;
             f_0_draw_cols(x, y, &pix, obj);
             f_0_draw_bird(x, y, &pix, obj);
 
