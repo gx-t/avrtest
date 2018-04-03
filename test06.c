@@ -30,6 +30,33 @@ static uint8_t lib_rand_6()
     return 1 + (val >> 1);
 }
 
+static void spi_init()
+{
+    DDRB = 0b00101111; //output CLK, MOSI, SS, LCD-DC, LCD-RST
+    SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPI2X); //enable SPI-master, clock/2 speed
+}
+
+static void spi_wait_write()
+{
+    while(!(SPSR & (1 << SPIF))); //wait for write end
+}
+
+static void spi_write_byte(uint8_t data)
+{
+    SPDR = data;
+}
+
+static void btn_init()
+{
+    DDRC = 0b00000000;
+    PORTC = 0b01000001; //reset and button pull-up
+}
+
+static btn_0_get_state()
+{
+    return PINC & 1;
+}
+
 static void lcd_init()
 {
     uint8_t i, init_seq[] = {
@@ -41,8 +68,8 @@ static void lcd_init()
     PORTB = 0b000001; //LCD-DC low
 
     for(i = 0; i < sizeof(init_seq); i ++) {
-        SPDR = init_seq[i]; //send to SPI
-        while(!(SPSR & (1 << SPIF))); //wait for write end
+        spi_write_byte(init_seq[i]);
+        spi_wait_write();
     }
 }
 
@@ -60,12 +87,8 @@ ISR(TIMER2_OVF_vect)
 
 static void sys_init()
 {
-    DDRC    = 0b00000000;
-    PORTC   = 0b01000001; //reset and button pull-up
-
-    DDRB    = 0b00101111; //output CLK, MOSI, SS, LCD-DC, LCD-RST
-    SPCR    = (1 << SPE) | (1 << MSTR) | (1 << SPI2X); //enable SPI-master, clock/2 speed
-
+    btn_init();
+    spi_init();
     cli();
     set_sleep_mode(SLEEP_MODE_IDLE);
     sleep_enable();
@@ -144,11 +167,11 @@ static void f_0_draw(const struct F_0_OBJ* obj)
             f_0_draw_cols(x, y, &pix, obj);
             f_0_draw_bird(x, y, &pix, obj);
 
-            while(!(SPSR & (1 << SPIF))); //wait for prev. write to end
-            SPDR = pix; //send to SPI
+            spi_wait_write();
+            spi_write_byte(pix);
         }
     }
-    while(!(SPSR & (1 << SPIF))); //wait for last write to end
+    spi_wait_write();
 }
 
 static void f_0_update(struct F_0_OBJ* obj)
@@ -165,7 +188,7 @@ static void f_0_update(struct F_0_OBJ* obj)
         obj->col[1].hole_y = lib_rand_6();
     }
 
-    obj->bird.y += PINC & 1 ? 1 : -2; //check button press
+    obj->bird.y += btn_0_get_state() ? 1 : -2;
     if(obj->bird.y > 41 + 4) {
         obj->bird.y = 0;
     }
