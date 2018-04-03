@@ -21,6 +21,15 @@
    VCC, GND -- 0.1uF C
  */
 
+static uint8_t lib_rand_6()
+{
+    static const uint8_t tbl[] = {0, 5, 6, 7, 1, 3, 2, 4};
+    static uint8_t val = 0xFF;
+    static uint8_t cnt = 0;
+    val = tbl[(val ^ cnt ++) & 0b111];
+    return 1 + (val >> 1);
+}
+
 static void lcd_init()
 {
     uint8_t i, init_seq[] = {
@@ -65,69 +74,75 @@ static void sys_init()
     sei();
 }
 
-struct COLUMN {
-    uint8_t x, hole_y;
+
+//-----------------------------------------------------------------------------
+//F_0 demo
+
+struct F_0_OBJ {
+    struct {
+        uint8_t x, hole_y;
+    }col[2];
+
+    struct {
+        uint8_t y;
+    }bird;
 };
 
-struct BIRD {
-    uint8_t y;
-};
-
-static void draw_cols(uint8_t x, uint8_t y, uint8_t* pix, struct COLUMN* col)
+static void f_0_draw_cols(uint8_t x, uint8_t y, uint8_t* pix, const struct F_0_OBJ* obj)
 {
-    if(col[0].hole_y == y) {
-        if(col[0].x - 5 < x && col[0].x + 5 > x) {
+    if(obj->col[0].hole_y == y) {
+        if(obj->col[0].x - 5 < x && obj->col[0].x + 5 > x) {
             *pix = 0b10000001;
         }
     }
     else {
-        if(col[0].x - 4 < x && col[0].x + 4 > x) {
+        if(obj->col[0].x - 4 < x && obj->col[0].x + 4 > x) {
             *pix = 0b11111111;
         }
     }
 
-    if(col[1].hole_y == y) {
-        if(col[1].x - 5 < x && col[1].x + 5 > x) {
+    if(obj->col[1].hole_y == y) {
+        if(obj->col[1].x - 5 < x && obj->col[1].x + 5 > x) {
             *pix = 0b10000001;
         }
     }
     else {
-        if(col[1].x - 4 < x && col[1].x + 4 > x) {
+        if(obj->col[1].x - 4 < x && obj->col[1].x + 4 > x) {
             *pix = 0b11111111;
         }
     }
 }
 
-static void draw_bird(uint8_t x, uint8_t y, uint8_t* pix, struct BIRD* bird)
+static void f_0_draw_bird(uint8_t x, uint8_t y, uint8_t* pix, const struct F_0_OBJ* obj)
 {
     union {
         uint16_t u16;
         uint8_t u8[2];
     } mask = {.u16 = 0b0000000000111100};
 
-    if(y == bird->y >> 3) {
+    if(y == obj->bird.y >> 3) {
         if(6 < x && 14 > x) {
-            mask.u16 <<= (bird->y % 8);
+            mask.u16 <<= (obj->bird.y % 8);
             *pix |= mask.u8[0];
         }
     }
-    if(y - 1 == bird->y >> 3) {
+    if(y - 1 == obj->bird.y >> 3) {
         if(6 < x && 14 > x) {
-            mask.u16 <<= (bird->y % 8);
+            mask.u16 <<= (obj->bird.y % 8);
             *pix |= mask.u8[1];
         }
     }
 }
 
-static void draw(struct COLUMN* col, struct BIRD* bird)
+static void f_0_draw(const struct F_0_OBJ* obj)
 {
     PORTB = 0b000011; //LCD-CE on, LCD-DC high
     uint8_t x, y, pix;
     for(y = 0; y < 6; y ++) {
         for(x = 0; x < 84; x ++) {
             pix = 0;
-            draw_cols(x, y, &pix, col);
-            draw_bird(x, y, &pix, bird);
+            f_0_draw_cols(x, y, &pix, obj);
+            f_0_draw_bird(x, y, &pix, obj);
 
             while(!(SPSR & (1 << SPIF))); //wait for prev. write to end
             SPDR = pix; //send to SPI
@@ -136,47 +151,46 @@ static void draw(struct COLUMN* col, struct BIRD* bird)
     while(!(SPSR & (1 << SPIF))); //wait for last write to end
 }
 
-static uint8_t rand_6()
+static void f_0_update(struct F_0_OBJ* obj)
 {
-    static const uint8_t tbl[] = {0, 5, 6, 7, 1, 3, 2, 4};
-    static uint8_t val = 0xFF;
-    static uint8_t cnt = 0;
-    val = tbl[(val ^ cnt ++) & 0b111];
-    return 1 + (val >> 1);
+    obj->col[0].x--;
+    if(obj->col[0].x > 83) {
+        obj->col[0].x = 83;
+        obj->col[0].hole_y = lib_rand_6();
+    }
+
+    obj->col[1].x--;
+    if(obj->col[1].x > 83) {
+        obj->col[1].x = 83;
+        obj->col[1].hole_y = lib_rand_6();
+    }
+
+    obj->bird.y += PINC & 1 ? 1 : -2; //check button press
+    if(obj->bird.y > 41 + 4) {
+        obj->bird.y = 0;
+    }
 }
 
-static void update_scene(struct COLUMN* col, struct BIRD* bird)
+static void f_0_main()
 {
-    col[0].x--;
-    if(col[0].x > 83) {
-        col[0].x = 83;
-        col[0].hole_y = rand_6();
-    }
-
-    col[1].x--;
-    if(col[1].x > 83) {
-        col[1].x = 83;
-        col[1].hole_y = rand_6();
-    }
-
-
-    bird->y += PINC & 1 ? 1 : -2; //check button press
-    if(bird->y > 41 + 4) {
-        bird->y = 0;
-    }
+    struct F_0_OBJ obj = {
+        .col[0].x = 83, .col[0].hole_y = 2, .col[1].x = 41, .col[1].hole_y = 2,
+        .bird.y = 16
+    };
+    while(1) {
+        f_0_draw(&obj);
+//        PORTB = 0b000111; //LCD-CE off, LCD-DC high - same power consuption - 1.30ma x 3v
+        f_0_update(&obj);
+        sleep_cpu();
+    } 
 }
 
 int main(void)
 {
-    struct COLUMN col[] = {[0].x = 83, [0].hole_y = 2, [1].x = 41, [1].hole_y = 2};
-    struct BIRD bird = {.y = 16};
     sys_init();
     while(1) {
-        draw(col, &bird);
-//        PORTB = 0b000111; //LCD-CE off, LCD-DC high - same power consuption - 1.30ma x 3v
-        update_scene(col, &bird);
-        sleep_cpu();
-    } 
+        f_0_main();
+    }
     return 0;
 }
 
