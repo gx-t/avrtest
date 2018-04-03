@@ -117,7 +117,7 @@ struct F_0_OBJ {
     }bird;
 };
 
-static void f_0_draw_cols(uint8_t x, uint8_t y, uint8_t* pix, const struct F_0_OBJ* obj)
+static void f_0_draw_cols(const struct F_0_OBJ* obj, uint8_t* pix, uint8_t x, uint8_t y)
 {
     if(obj->col[0].hole_y == y) {
         if(obj->col[0].x - 5 < x && obj->col[0].x + 5 > x) {
@@ -142,7 +142,7 @@ static void f_0_draw_cols(uint8_t x, uint8_t y, uint8_t* pix, const struct F_0_O
     }
 }
 
-static void f_0_draw_bird(uint8_t x, uint8_t y, uint8_t* pix, const struct F_0_OBJ* obj)
+static void f_0_draw_bird(const struct F_0_OBJ* obj, uint8_t* pix, uint8_t x, uint8_t y)
 {
     union {
         uint16_t u16;
@@ -170,8 +170,8 @@ static void f_0_draw(const struct F_0_OBJ* obj)
         uint8_t x;
         for(x = 0; x < 84; x ++) {
             uint8_t pix = 0;
-            f_0_draw_cols(x, y, &pix, obj);
-            f_0_draw_bird(x, y, &pix, obj);
+            f_0_draw_cols(obj, &pix, x, y);
+            f_0_draw_bird(obj, &pix, x, y);
 
             spi_wait_write();
             spi_write_byte(pix);
