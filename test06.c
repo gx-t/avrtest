@@ -52,7 +52,7 @@ static void btn_init()
     PORTC = 0b01000001; //reset and button pull-up
 }
 
-static btn_0_get_state()
+static uint8_t btn_0_get_state()
 {
     return PINC & 1;
 }
@@ -103,9 +103,30 @@ static void sys_init()
     sei();
 }
 
+//-----------------------------------------------------------------------------
+
 struct FRAGMENT {
     uint8_t x, y, val;
 };
+
+static void f_main_loop(void* obj, void (*update)(), void (*draw)())
+{
+    while(1) {
+        struct FRAGMENT frag;
+        for(frag.y = 0; frag.y < 6; frag.y ++) {
+            for(frag.x = 0; frag.x < 84; frag.x ++) {
+                frag.val = 0;
+                draw(obj, &frag);
+                spi_wait_write();
+                spi_write_byte(frag.val);
+            }
+        }
+        spi_wait_write();
+        //        PORTB = 0b000111; //LCD-CE off, LCD-DC high - same power consuption - 1.30ma x 3v
+        update(obj);
+        sleep_cpu();
+    } 
+}
 
 //-----------------------------------------------------------------------------
 //F_0 demo
@@ -155,21 +176,11 @@ static void f_0_draw_bird(const struct F_0_OBJ* obj, struct FRAGMENT* frag)
     }
 }
 
-static void f_0_draw(const struct F_0_OBJ* obj)
+static void f_0_draw(const struct F_0_OBJ* obj, struct FRAGMENT* frag)
 {
-    struct FRAGMENT frag;
-    for(frag.y = 0; frag.y < 6; frag.y ++) {
-        for(frag.x = 0; frag.x < 84; frag.x ++) {
-            frag.val = 0;
-            f_0_draw_1_col(obj, 0, &frag);
-            f_0_draw_1_col(obj, 1, &frag);
-            f_0_draw_bird(obj, &frag);
-
-            spi_wait_write();
-            spi_write_byte(frag.val);
-        }
-    }
-    spi_wait_write();
+    f_0_draw_1_col(obj, 0, frag);
+    f_0_draw_1_col(obj, 1, frag);
+    f_0_draw_bird(obj, frag);
 }
 
 static void f_0_update(struct F_0_OBJ* obj)
@@ -198,12 +209,7 @@ static void f_0_main()
         .col[0].x = 83, .col[0].hole_y = 2, .col[1].x = 41, .col[1].hole_y = 2,
         .bird.y = 16
     };
-    while(1) {
-        f_0_draw(&obj);
-//        PORTB = 0b000111; //LCD-CE off, LCD-DC high - same power consuption - 1.30ma x 3v
-        f_0_update(&obj);
-        sleep_cpu();
-    } 
+    f_main_loop(&obj, f_0_update, f_0_draw);
 }
 
 int main(void)

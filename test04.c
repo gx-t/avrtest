@@ -42,12 +42,12 @@ static void uart_tx(uint8_t data)
 	UDR = data;
 }
 
-static uint8_t uart_rx()
-{
-	while(!(UCSRA & (1 << RXC)));
-
-	return UDR;
-}
+//static uint8_t uart_rx()
+//{
+//	while(!(UCSRA & (1 << RXC)));
+//
+//	return UDR;
+//}
 
 ISR(USART_RX_vect)
 {
@@ -55,7 +55,7 @@ ISR(USART_RX_vect)
 
 ///////////////////////////////////////////////////////////////////////////////
 static void p_nibble(uint8_t val) {
-	static const xx[] = {
+	static const uint8_t xx[] = {
 		'0', '1', '2', '3', '4', '5', '6', '7',
 		'8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
 	};
@@ -140,7 +140,7 @@ static uint16_t sht1x_read() {
 	return data;
 }
 
-static uint8_t sht1x_wait_result() {
+static void sht1x_wait_result() {
 	while(PIND & DAT_1);
 }
 

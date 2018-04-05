@@ -38,12 +38,12 @@ static void uart_init() {
 	UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
 }
 
-static uint8_t uart_rx()
-{
-	while(!(UCSR0A & (1 << RXC0)));
-
-	return UDR0;
-}
+//static uint8_t uart_rx()
+//{
+//	while(!(UCSR0A & (1 << RXC0)));
+//
+//	return UDR0;
+//}
 
 static void uart_tx(uint8_t data)
 {
@@ -124,7 +124,7 @@ ISR(TIMER2_OVF_vect)
 }
 
 static void p_time() {
-	static const num_arr[] = {
+	static const uint8_t num_arr[] = {
 		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
 	};
 	uart_tx(num_arr[tm.d1]);
