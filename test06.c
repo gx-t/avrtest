@@ -103,6 +103,9 @@ static void sys_init()
     sei();
 }
 
+struct FRAGMENT {
+    uint8_t x, y, val;
+};
 
 //-----------------------------------------------------------------------------
 //F_0 demo
@@ -117,64 +120,53 @@ struct F_0_OBJ {
     }bird;
 };
 
-static void f_0_draw_cols(const struct F_0_OBJ* obj, uint8_t* pix, uint8_t x, uint8_t y)
+static void f_0_draw_1_col(const struct F_0_OBJ* obj, uint8_t index, struct FRAGMENT* frag)
 {
-    if(obj->col[0].hole_y == y) {
-        if(obj->col[0].x - 5 < x && obj->col[0].x + 5 > x) {
-            *pix = 0b10000001;
+    if(obj->col[index].hole_y == frag->y) {
+        if(obj->col[index].x - 5 < frag->x && obj->col[index].x + 5 > frag->x) {
+            frag->val = 0b10000001;
         }
     }
     else {
-        if(obj->col[0].x - 4 < x && obj->col[0].x + 4 > x) {
-            *pix = 0b11111111;
-        }
-    }
-
-    if(obj->col[1].hole_y == y) {
-        if(obj->col[1].x - 5 < x && obj->col[1].x + 5 > x) {
-            *pix = 0b10000001;
-        }
-    }
-    else {
-        if(obj->col[1].x - 4 < x && obj->col[1].x + 4 > x) {
-            *pix = 0b11111111;
+        if(obj->col[index].x - 4 < frag->x && obj->col[index].x + 4 > frag->x) {
+            frag->val = 0b11111111;
         }
     }
 }
 
-static void f_0_draw_bird(const struct F_0_OBJ* obj, uint8_t* pix, uint8_t x, uint8_t y)
+static void f_0_draw_bird(const struct F_0_OBJ* obj, struct FRAGMENT* frag)
 {
     union {
         uint16_t u16;
         uint8_t u8[2];
     } mask = {.u16 = 0b0000000000111100};
 
-    if(y == obj->bird.y >> 3) {
-        if(6 < x && 14 > x) {
+    if(frag->y == obj->bird.y >> 3) {
+        if(6 < frag->x && 14 > frag->x) {
             mask.u16 <<= (obj->bird.y % 8);
-            *pix |= mask.u8[0];
+            frag->val |= mask.u8[0];
         }
     }
-    if(y - 1 == obj->bird.y >> 3) {
-        if(6 < x && 14 > x) {
+    if(frag->y - 1 == obj->bird.y >> 3) {
+        if(6 < frag->x && 14 > frag->x) {
             mask.u16 <<= (obj->bird.y % 8);
-            *pix |= mask.u8[1];
+            frag->val |= mask.u8[1];
         }
     }
 }
 
 static void f_0_draw(const struct F_0_OBJ* obj)
 {
-    uint8_t y;
-    for(y = 0; y < 6; y ++) {
-        uint8_t x;
-        for(x = 0; x < 84; x ++) {
-            uint8_t pix = 0;
-            f_0_draw_cols(obj, &pix, x, y);
-            f_0_draw_bird(obj, &pix, x, y);
+    struct FRAGMENT frag;
+    for(frag.y = 0; frag.y < 6; frag.y ++) {
+        for(frag.x = 0; frag.x < 84; frag.x ++) {
+            frag.val = 0;
+            f_0_draw_1_col(obj, 0, &frag);
+            f_0_draw_1_col(obj, 1, &frag);
+            f_0_draw_bird(obj, &frag);
 
             spi_wait_write();
-            spi_write_byte(pix);
+            spi_write_byte(frag.val);
         }
     }
     spi_wait_write();
