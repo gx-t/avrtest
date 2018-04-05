@@ -183,24 +183,28 @@ static void f_0_draw(const struct F_0_OBJ* obj, struct FRAGMENT* frag)
     f_0_draw_bird(obj, frag);
 }
 
-static void f_0_update(struct F_0_OBJ* obj)
+static void f_0_update_1_col(struct F_0_OBJ* obj, uint8_t index)
 {
-    obj->col[0].x--;
-    if(obj->col[0].x > 83) {
-        obj->col[0].x = 83;
-        obj->col[0].hole_y = lib_rand_6();
+    obj->col[index].x--;
+    if(obj->col[index].x > 83) {
+        obj->col[index].x = 83;
+        obj->col[index].hole_y = lib_rand_6();
     }
+}
 
-    obj->col[1].x--;
-    if(obj->col[1].x > 83) {
-        obj->col[1].x = 83;
-        obj->col[1].hole_y = lib_rand_6();
-    }
-
+static void f_0_update_bird(struct F_0_OBJ* obj)
+{
     obj->bird.y += btn_0_get_state() ? 1 : -2;
     if(obj->bird.y > 41 + 4) {
         obj->bird.y = 0;
     }
+}
+
+static void f_0_update(struct F_0_OBJ* obj)
+{
+    f_0_update_1_col(obj, 0);
+    f_0_update_1_col(obj, 1);
+    f_0_update_bird(obj);
 }
 
 static void f_0_main()
