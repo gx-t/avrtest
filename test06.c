@@ -49,12 +49,18 @@ static void spi_write_byte(uint8_t data)
 static void btn_init()
 {
     DDRC = 0b00000000;
-    PORTC = 0b01000001; //reset and button pull-up
+    PORTC = 0b01000011; //reset and button pull-up
 }
 
-static uint8_t btn_0_get_state()
+static uint8_t btn_get_state(uint8_t mask)
 {
-    return PINC & 1;
+    return PINC & mask;
+}
+
+static void btn_wait_release(uint8_t mask)
+{
+    while(!btn_get_state(mask))
+        sleep_cpu();
 }
 
 static void lcd_init()
@@ -111,7 +117,7 @@ struct FRAGMENT {
 
 static void f_main_loop(void* obj, void (*update)(), void (*draw)())
 {
-    while(1) {
+    while(btn_get_state(2)) {
         struct FRAGMENT frag;
         for(frag.y = 0; frag.y < 6; frag.y ++) {
             for(frag.x = 0; frag.x < 84; frag.x ++) {
@@ -126,6 +132,7 @@ static void f_main_loop(void* obj, void (*update)(), void (*draw)())
         update(obj);
         sleep_cpu();
     } 
+    btn_wait_release(2);
 }
 
 //-----------------------------------------------------------------------------
@@ -194,7 +201,7 @@ static void f_0_update_1_col(struct F_0_OBJ* obj, uint8_t index)
 
 static void f_0_update_bird(struct F_0_OBJ* obj)
 {
-    obj->bird.y += btn_0_get_state() ? 1 : -2;
+    obj->bird.y += btn_get_state(1) ? 1 : -2;
     if(obj->bird.y > 41 + 4) {
         obj->bird.y = 0;
     }
