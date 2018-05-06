@@ -85,7 +85,7 @@ static void lcd_set_data_mode()
 }
 
 static void rtc_init(void)
-{  
+{
     TCCR2A = 0x00;  //overflow
     TCCR2B = 0x02;  //5 gives 1 sec. prescale 
     TIMSK2 = 0x01;  //enable timer2A overflow interrupt
