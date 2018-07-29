@@ -10,6 +10,15 @@ ATMEGA 328P
     RTC: 9-10 32768 Hz QZ 
     9 -- 32768HZ -- 10
     Serial in/out
+    LoRa:
+        PB0 -- RST
+        PB1 -- DIO0 (RX interrupt)
+        PB2 -- NSS
+        PB3 -- MOSI
+        PB4 -- MISO
+        PB5 -- SCK
+
+        !! PB2 -- 100K -- VCC (disable loRa during ASP programming)
 */
 
 ISR(TIMER2_OVF_vect)
@@ -25,6 +34,36 @@ static void rtc_init(void)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+static void spi_init()
+{
+    // CLK, MISO, MOSI, NSS, RX-INT, RST
+    DDRB = 0b101101;
+    SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPI2X); //enable SPI-master, clock/2 speed
+}
+
+//static void spi_write_byte(uint8_t data)
+//{
+//    SPDR = data;
+//    while(!(SPSR & (1 << SPIF))); //wait for write end
+//}
+
+static void lora_reset()
+{
+    _delay_us(100);
+    PORTB |= (1 << PB0);
+    _delay_ms(5);
+}
+
+static uint8_t lora_read_reg(uint8_t reg)
+{
+    SPDR = reg;
+    while(!(SPSR & (1 << SPIF)));
+    SPDR = 0;
+    while(!(SPSR & (1 << SPIF)));
+    return SPDR;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 #define USART_BAUD 38400UL
 #define USART_UBBR_VALUE ((F_CPU / (USART_BAUD << 4)) - 1)
 
@@ -32,7 +71,8 @@ ISR(USART_RX_vect)
 {
 }
 
-static void uart_init() {
+static void uart_init()
+{
 	UBRR0H = (uint8_t) (USART_UBBR_VALUE >> 8);
 	UBRR0L = (uint8_t) USART_UBBR_VALUE;
 
@@ -52,10 +92,26 @@ static void uart_tx(uint8_t data)
 	UDR0 = data;
 }
 
-static void p_line(const char* pp) {
-	while(*pp) {
-		uart_tx(*pp++);
+//static void p_line(const char* pp)
+//{
+//	while(*pp) {
+//		uart_tx(*pp++);
+//	}
+//	uart_tx('\r');
+//	uart_tx('\n');
+//}
+
+static void p_hex_value(const char* name, uint8_t val)
+{
+    static const uint8_t hex_chars[] = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+    };
+	while(*name) {
+		uart_tx(*name++);
 	}
+	uart_tx('=');
+    uart_tx(hex_chars[(val & 0xF0) >> 4]);
+    uart_tx(hex_chars[(val & 0x0F)]);
 	uart_tx('\r');
 	uart_tx('\n');
 }
@@ -63,17 +119,22 @@ static void p_line(const char* pp) {
 ///////////////////////////////////////////////////////////////////////////////
 //Interrupts
 
-static void sys_init() {
+static void sys_init()
+{
 	cli();
 	set_sleep_mode(SLEEP_MODE_IDLE);
 	sleep_enable();
 	uart_init();
 	rtc_init();
+    spi_init();
+    lora_reset();
 	sei();
 }
 
-int main(void) {
+int main(void)
+{
 	sys_init();
+    p_hex_value("REG 0x42", lora_read_reg(0x42));
 	while(1) {
 		sleep_cpu();
 		if(UCSR0A & (1 << RXC0)) {
@@ -86,7 +147,7 @@ int main(void) {
             }
 		}
 		else {
-            p_line("RTC");
+        //    p_line("RTC");
 		}
 	} 
 	return 1;
