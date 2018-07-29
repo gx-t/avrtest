@@ -27,10 +27,10 @@ ISR(TIMER2_OVF_vect)
 
 static void rtc_init(void)
 {  
-	TCCR2A = 0x00;  //overflow
-	TCCR2B = 0x05;  //5 gives 1 sec. prescale 
-	TIMSK2 = 0x01;  //enable timer2A overflow interrupt
-	ASSR  = 0x20;   //enable asynchronous mode
+    TCCR2A = 0x00;  //overflow
+    TCCR2B = 0x05;  //5 gives 1 sec. prescale 
+    TIMSK2 = 0x01;  //enable timer2A overflow interrupt
+    ASSR  = 0x20;   //enable asynchronous mode
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -39,6 +39,7 @@ static void spi_init()
     // CLK, MISO, MOSI, NSS, RX-INT, RST
     DDRB = 0b101101;
     SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPI2X); //enable SPI-master, clock/2 speed
+    PORTB |= (1 << PB2);
 }
 
 //static void spi_write_byte(uint8_t data)
@@ -56,10 +57,12 @@ static void lora_reset()
 
 static uint8_t lora_read_reg(uint8_t reg)
 {
+    PORTB &= ~(1 << PB2);
     SPDR = reg;
     while(!(SPSR & (1 << SPIF)));
     SPDR = 0;
     while(!(SPSR & (1 << SPIF)));
+    PORTB |= (1 << PB2);
     return SPDR;
 }
 
@@ -76,20 +79,20 @@ static void uart_init()
 	UBRR0H = (uint8_t) (USART_UBBR_VALUE >> 8);
 	UBRR0L = (uint8_t) USART_UBBR_VALUE;
 
-	UCSR0A = 0;
-	
+    UCSR0A = 0;
 
-	//Enable UART
-	UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);
 
-	//8 data bits, 1 stop bit
-	UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
+    //Enable UART
+    UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);
+
+    //8 data bits, 1 stop bit
+    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
 }
 
 static void uart_tx(uint8_t data)
 {
-	while (!(UCSR0A & (1 << UDRE0)));
-	UDR0 = data;
+    while (!(UCSR0A & (1 << UDRE0)));
+    UDR0 = data;
 }
 
 //static void p_line(const char* pp)
@@ -116,8 +119,6 @@ static void p_hex_value(const char* name, uint8_t val)
 	uart_tx('\n');
 }
 
-///////////////////////////////////////////////////////////////////////////////
-//Interrupts
 
 static void sys_init()
 {
@@ -134,6 +135,7 @@ static void sys_init()
 int main(void)
 {
 	sys_init();
+    lora_reset();
     p_hex_value("REG 0x42", lora_read_reg(0x42));
 	while(1) {
 		sleep_cpu();
@@ -141,12 +143,13 @@ int main(void)
 			uint8_t ch = UDR0;
 			if(ch == '\r') {
                 uart_tx('\n');
-			}
+            }
             else {
                 uart_tx(ch);
             }
 		}
 		else {
+            p_hex_value("REG 0x42", lora_read_reg(0x42));
         //    p_line("RTC");
 		}
 	} 
