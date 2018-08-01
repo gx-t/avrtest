@@ -115,6 +115,7 @@ static void p_str(const char* str)
 ///////////////////////////////////////////////////////////////////////////////
 static void lora_reset()
 {
+    PORTB &= ~(1 << PB0);
     _delay_us(100);
     PORTB |= (1 << PB0);
     _delay_ms(5);
