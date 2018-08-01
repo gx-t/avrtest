@@ -141,19 +141,6 @@ static void lora_write_reg(uint8_t reg, uint8_t val)
     spi_chip_disable();
 }
 
-//tested->
-//static void lora_write_regs(uint8_t reg, const uint8_t* val, uint8_t count)
-//{
-//    spi_chip_enable();
-//    SPDR = reg | 0x80;
-//    spi_wait_write();
-//    while(count --) {
-//        SPDR = *val ++;
-//        spi_wait_write();
-//    }
-//    spi_chip_disable();
-//}
-
 static void lora_print_reg(uint8_t reg)
 {
     static const uint8_t hex_chars[] = {
@@ -173,7 +160,6 @@ static void lora_print_reg(uint8_t reg)
 static void lora_update_reg(uint8_t reg, uint8_t mask, uint8_t val)
 {
     lora_write_reg(reg, val | (mask & lora_read_reg(reg)));
-    lora_print_reg(reg);
 }
 
 static void lora_set_sleep_mode()
@@ -214,45 +200,37 @@ static void lora_set_crc_off()
 static void lora_set_overcurrent_prot_off()
 {
     lora_write_reg(0x0B, 0x1f);
-    lora_print_reg(0x0B);
 }
 
 static void lora_set_max_tx_power_20dbm()
 {
     lora_write_reg(0x4D, 0x87);
-    lora_print_reg(0x4D);
 }
 
 static void lora_set_pa_boost_20dbm()
 {
     lora_write_reg(0x09, 0xF0 | (20 - 2));
-    lora_print_reg(0x09);
 }
 
 static void lora_set_syncword_0x12()
 {
     lora_write_reg(0x39, 0x12);
-    lora_print_reg(0x39);
 }
 
 static void lora_set_preample_len_6()
 {
     lora_write_reg(0x20, 0x00); //MSB
     lora_write_reg(0x21, 0x06); //LSB
-    lora_print_reg(0x20);
-    lora_print_reg(0x21);
 }
 
 static void lora_set_agc_on()
 {
     lora_write_reg(0x26, 0b100);
-    lora_print_reg(0x26);
 }
 
 static void lora_set_lna_gain_highest()
 {
     lora_write_reg(0x0C, 0b100000);
-    lora_print_reg(0x0C);//prints current gain in -db
 }
 
 static void lora_ocp_off()
@@ -273,7 +251,6 @@ static void lora_reset_rx_base_address()
 static void lora_set_detection_optimize_for_sf7_to12()
 {
     lora_write_reg(0x31, 0xC3);
-    lora_print_reg(0x31);
 }
 
 static void lora_set_detection_threshold_for_sf7_to_sf12()
@@ -287,18 +264,9 @@ static void lora_set_freq_434800000()
     //Frf = Fosc * reg_value / 2 ^ 19
     //p. 109
 
-    //    const uint8_t vals[] = {
-    //        0x6C, 0xB3, 0x34
-    //    };
-
-    // lora_write_regs(0x06, vals, sizeof(vals));
     lora_write_reg(0x06, 0x6C);
     lora_write_reg(0x07, 0xB3);
     lora_write_reg(0x08, 0x34);
-
-    lora_print_reg(0x06);
-    lora_print_reg(0x07);
-    lora_print_reg(0x08);
 }
 
 static void lora_set_low_data_optimize_on()
