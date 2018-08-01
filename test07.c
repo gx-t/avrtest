@@ -351,11 +351,38 @@ static void lora_init()
     lora_set_rx_cont_mode();
 }
 
+static void lora_reset_irq_flags()
+{
+    lora_write_reg(0x12, 0xff);
+}
+
+static void lora_read_rx_data()
+{
+    uint8_t nbytes = 0;
+    lora_write_reg(0x0D, lora_read_reg(0x10));
+    nbytes = lora_read_reg(0x13);
+    spi_chip_enable();
+    SPDR = 0x00;
+    spi_wait_write();
+    while(nbytes --) {
+        SPDR = 0;
+        spi_wait_write();
+        uart_tx(SPDR);
+    }
+    spi_chip_disable();
+    lora_reset_irq_flags();
+    uart_tx('\r');
+    uart_tx('\n');
+}
+
 static void lora_check_rx_complete_and_read()
 {
     if(!(PINB & 0b10))
         return;
     p_line("RECEIVED!");
+    if(!(0b1000000 & lora_read_reg(0x12)))
+        return;
+    lora_read_rx_data();
 }
 
 static void sys_init()
