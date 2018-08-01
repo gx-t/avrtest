@@ -199,7 +199,7 @@ static void lora_set_crc_off()
 
 static void lora_set_overcurrent_prot_off()
 {
-    lora_write_reg(0x0B, 0x1f);
+    lora_update_reg(0x0B, 0b11011111, 0x00);
 }
 
 static void lora_set_max_tx_power_20dbm()
@@ -231,11 +231,6 @@ static void lora_set_agc_on()
 static void lora_set_lna_gain_highest()
 {
     lora_write_reg(0x0C, 0b100000);
-}
-
-static void lora_ocp_off()
-{
-    lora_update_reg(0x0B, 0b11011111, 0x00);
 }
 
 static void lora_reset_tx_base_address()
@@ -307,7 +302,6 @@ static void lora_init()
     lora_set_preample_len_6();
     lora_set_agc_on();
     lora_set_lna_gain_highest();
-    lora_ocp_off();
     lora_reset_tx_base_address();
     lora_reset_rx_base_address();
     lora_set_detection_optimize_for_sf7_to12();
