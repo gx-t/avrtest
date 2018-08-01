@@ -96,14 +96,14 @@ static void uart_tx(uint8_t data)
     while (!(UCSR0A & (1 << UDRE0)));
 }
 
-//static void p_line(const char* pp)
-//{
-//	while(*pp) {
-//		uart_tx(*pp++);
-//	}
-//	uart_tx('\r');
-//	uart_tx('\n');
-//}
+static void p_line(const char* pp)
+{
+	while(*pp) {
+		uart_tx(*pp++);
+	}
+	uart_tx('\r');
+	uart_tx('\n');
+}
 
 static void p_str(const char* str)
 {
@@ -140,6 +140,19 @@ static void lora_write_reg(uint8_t reg, uint8_t val)
     spi_wait_write();
     spi_chip_disable();
 }
+
+//tested->
+//static void lora_write_regs(uint8_t reg, const uint8_t* val, uint8_t count)
+//{
+//    spi_chip_enable();
+//    SPDR = reg | 0x80;
+//    spi_wait_write();
+//    while(count --) {
+//        SPDR = *val ++;
+//        spi_wait_write();
+//    }
+//    spi_chip_disable();
+//}
 
 static void lora_print_reg(uint8_t reg)
 {
@@ -216,6 +229,98 @@ static void lora_set_pa_boost_20dbm()
     lora_print_reg(0x09);
 }
 
+static void lora_set_syncword_0x12()
+{
+    lora_write_reg(0x39, 0x12);
+    lora_print_reg(0x39);
+}
+
+static void lora_set_preample_len_6()
+{
+    lora_write_reg(0x20, 0x00); //MSB
+    lora_write_reg(0x21, 0x06); //LSB
+    lora_print_reg(0x20);
+    lora_print_reg(0x21);
+}
+
+static void lora_set_agc_on()
+{
+    lora_write_reg(0x26, 0b100);
+    lora_print_reg(0x26);
+}
+
+static void lora_set_lna_gain_highest()
+{
+    lora_write_reg(0x0C, 0b100000);
+    lora_print_reg(0x0C);//prints current gain in -db
+}
+
+static void lora_ocp_off()
+{
+    lora_update_reg(0x0B, 0b11011111, 0x00);
+}
+
+static void lora_reset_tx_base_address()
+{
+    lora_write_reg(0x0E, 0x00);
+}
+
+static void lora_reset_rx_base_address()
+{
+    lora_write_reg(0x0F, 0x00);
+}
+
+static void lora_set_detection_optimize_for_sf7_to12()
+{
+    lora_write_reg(0x31, 0xC3);
+    lora_print_reg(0x31);
+}
+
+static void lora_set_detection_threshold_for_sf7_to_sf12()
+{
+    lora_write_reg(0x37, 0x0A);
+}
+
+static void lora_set_freq_434800000()
+{
+
+    //Frf = Fosc * reg_value / 2 ^ 19
+    //p. 109
+    
+//    const uint8_t vals[] = {
+//        0x6C, 0xB3, 0x34
+//    };
+
+    // lora_write_regs(0x06, vals, sizeof(vals));
+    lora_write_reg(0x06, 0x6C);
+    lora_write_reg(0x07, 0xB3);
+    lora_write_reg(0x08, 0x34);
+
+    lora_print_reg(0x06);
+    lora_print_reg(0x07);
+    lora_print_reg(0x08);
+}
+
+static void lora_set_low_data_optimize_on()
+{
+    lora_update_reg(0x26, 0xF7, 0x01 << 3);
+}
+
+static void lora_set_standby_mode()
+{
+    lora_update_reg(0x01, 0b11111000, 0b001);
+}
+
+static void lora_map_rx_to_dio0()
+{
+    lora_write_reg(0x40, 0 << 6);
+}
+
+static void lora_set_rx_cont_mode()
+{
+    lora_update_reg(0x01, 0b11111000, 0b101);
+}
+
 static void lora_init()
 {
     lora_reset();
@@ -230,8 +335,28 @@ static void lora_init()
     lora_set_overcurrent_prot_off();
     lora_set_max_tx_power_20dbm();
     lora_set_pa_boost_20dbm();
+    lora_set_syncword_0x12();
+    lora_set_preample_len_6();
+    lora_set_agc_on();
+    lora_set_lna_gain_highest();
+    lora_ocp_off();
+    lora_reset_tx_base_address();
+    lora_reset_rx_base_address();
+    lora_set_detection_optimize_for_sf7_to12();
+    lora_set_detection_threshold_for_sf7_to_sf12();
+    lora_set_freq_434800000();
+    lora_set_low_data_optimize_on();
+    lora_set_standby_mode();
+    lora_map_rx_to_dio0();
+    lora_set_rx_cont_mode();
 }
 
+static void lora_check_rx_complete_and_read()
+{
+    if(!(PINB & 0b10))
+        return;
+    p_line("RECEIVED!");
+}
 
 static void sys_init()
 {
@@ -260,8 +385,7 @@ int main(void)
             }
         }
         else {
-            //            p_hex_value("REG 0x42", lora_read_reg(0x42));
-            //    p_line("RTC");
+            lora_check_rx_complete_and_read();
         }
     } 
     return 1;
