@@ -6,20 +6,20 @@
 #include <util/delay.h>
 
 /*
-ATMEGA 328P
-    RTC: 9-10 32768 Hz QZ 
-    9 -- 32768HZ -- 10
-    Serial in/out
-    LoRa:
-        PB0 -- RST
-        PB1 -- DIO0 (RX interrupt)
-        PB2 -- NSS
-        PB3 -- MOSI
-        PB4 -- MISO
-        PB5 -- SCK
+   ATMEGA 328P
+RTC: 9-10 32768 Hz QZ 
+9 -- 32768HZ -- 10
+Serial in/out
+LoRa:
+PB0 -- RST
+PB1 -- DIO0 (RX interrupt)
+PB2 -- NSS
+PB3 -- MOSI
+PB4 -- MISO
+PB5 -- SCK
 
-        !! PB2 -- 100K -- VCC (disable loRa during ASP programming)
-*/
+!! PB2 -- 100K -- VCC (disable loRa during ASP programming)
+ */
 
 ISR(TIMER2_OVF_vect)
 {
@@ -77,8 +77,8 @@ ISR(USART_RX_vect)
 
 static void uart_init()
 {
-	UBRR0H = (uint8_t) (USART_UBBR_VALUE >> 8);
-	UBRR0L = (uint8_t) USART_UBBR_VALUE;
+    UBRR0H = (uint8_t) (USART_UBBR_VALUE >> 8);
+    UBRR0L = (uint8_t) USART_UBBR_VALUE;
 
     UCSR0A = 0;
 
@@ -98,11 +98,11 @@ static void uart_tx(uint8_t data)
 
 static void p_line(const char* pp)
 {
-	while(*pp) {
-		uart_tx(*pp++);
-	}
-	uart_tx('\r');
-	uart_tx('\n');
+    while(*pp) {
+        uart_tx(*pp++);
+    }
+    uart_tx('\r');
+    uart_tx('\n');
 }
 
 static void p_str(const char* str)
@@ -163,11 +163,11 @@ static void lora_print_reg(uint8_t reg)
     p_str("REG 0x");
     uart_tx(hex_chars[(reg & 0xF0) >> 4]);
     uart_tx(hex_chars[(reg & 0x0F)]);
-	p_str("=0x");
+    p_str("=0x");
     uart_tx(hex_chars[(val & 0xF0) >> 4]);
     uart_tx(hex_chars[(val & 0x0F)]);
-	uart_tx('\r');
-	uart_tx('\n');
+    uart_tx('\r');
+    uart_tx('\n');
 }
 
 static void lora_update_reg(uint8_t reg, uint8_t mask, uint8_t val)
@@ -286,10 +286,10 @@ static void lora_set_freq_434800000()
 
     //Frf = Fosc * reg_value / 2 ^ 19
     //p. 109
-    
-//    const uint8_t vals[] = {
-//        0x6C, 0xB3, 0x34
-//    };
+
+    //    const uint8_t vals[] = {
+    //        0x6C, 0xB3, 0x34
+    //    };
 
     // lora_write_regs(0x06, vals, sizeof(vals));
     lora_write_reg(0x06, 0x6C);
@@ -387,13 +387,13 @@ static void lora_check_rx_complete_and_read()
 
 static void sys_init()
 {
-	cli();
-	set_sleep_mode(SLEEP_MODE_IDLE);
-	sleep_enable();
-	uart_init();
-	rtc_init();
+    cli();
+    set_sleep_mode(SLEEP_MODE_IDLE);
+    sleep_enable();
+    uart_init();
+    rtc_init();
     spi_init();
-	sei();
+    sei();
 }
 
 int main(void)
@@ -405,6 +405,7 @@ int main(void)
         if(UCSR0A & (1 << RXC0)) {
             uint8_t ch = UDR0;
             if(ch == '\r') {
+                uart_tx('\r');
                 uart_tx('\n');
             }
             else {
