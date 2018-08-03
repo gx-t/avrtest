@@ -6,7 +6,8 @@
 #include <util/delay.h>
 
 /*
-   ATMEGA 328P
+ATMEGA328 + LoRa RA01 receive mode
+ATMEGA 328P:
 RTC: 9-10 32768 Hz QZ 
 9 -- 32768HZ -- 10
 Serial in/out
@@ -30,7 +31,8 @@ BW = "bandwidth"
 ECR = "error coding rate"
 AGC = "automatic gain control"
 OCP = "overcurrent protection"
- */
+PA = "power amplifier"
+*/
 
 ISR(TIMER2_OVF_vect)
 {
