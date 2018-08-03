@@ -19,6 +19,17 @@ PB4 -- MISO
 PB5 -- SCK
 
 !! PB2 -- 100K -- VCC (disable loRa during ASP programming)
+
+SX1276/77/78/79 datasheet:
+https://www.semtech.com/uploads/documents/DS_SX1276-7-8-9_W_APP_V5.pdf
+
+RX = "receive"
+TX = "transmit"
+SF = "spreading factor"
+BW = "bandwidth"
+ECR = "error coding rate"
+AGC = "automatic gain control"
+OCP = "overcurrent protection"
  */
 
 ISR(TIMER2_OVF_vect)
@@ -198,7 +209,7 @@ static void lora_set_crc_off()
     lora_update_reg(0x1E, 0xFB, 0x00);
 }
 
-static void lora_set_overcurrent_prot_off()
+static void lora_set_ocp_off()
 {
     lora_update_reg(0x0B, 0b11011111, 0x00);
 }
@@ -244,12 +255,12 @@ static void lora_reset_rx_base_address()
     lora_write_reg(0x0F, 0x00);
 }
 
-static void lora_set_detection_optimize_for_sf7_to12()
+static void lora_set_detection_optimize_for_sf_7to12()
 {
     lora_write_reg(0x31, 0xC3);
 }
 
-static void lora_set_detection_threshold_for_sf7_to_sf12()
+static void lora_set_detection_threshold_for_sf_7to12()
 {
     lora_write_reg(0x37, 0x0A);
 }
@@ -288,7 +299,7 @@ static void lora_set_rx_cont_mode()
 static void lora_init()
 {
     lora_reset();
-    lora_print_reg(0x42);
+    lora_print_reg(0x42); //chip version, must be 0x12
     lora_set_sleep_mode();
     lora_set_lora_mode();
     lora_set_explicit_header();
@@ -296,7 +307,7 @@ static void lora_init()
     lora_set_bandwidth_62_5();
     lora_set_sf_12();
     lora_set_crc_off();
-    lora_set_overcurrent_prot_off();
+    lora_set_ocp_off();
     lora_set_max_tx_power_20dbm();
     lora_set_pa_boost_20dbm();
     lora_set_syncword_0x12();
@@ -305,8 +316,8 @@ static void lora_init()
     lora_set_lna_gain_highest();
     lora_reset_tx_base_address();
     lora_reset_rx_base_address();
-    lora_set_detection_optimize_for_sf7_to12();
-    lora_set_detection_threshold_for_sf7_to_sf12();
+    lora_set_detection_optimize_for_sf_7to12();
+    lora_set_detection_threshold_for_sf_7to12();
     lora_set_freq_434800000();
     lora_set_low_data_optimize_on();
     lora_set_standby_mode();
@@ -319,11 +330,25 @@ static void lora_reset_irq_flags()
     lora_write_reg(0x12, 0xff);
 }
 
+static uint8_t lora_get_rx_data_len()
+{
+    return lora_read_reg(0x13);
+}
+
+static uint8_t lora_get_rx_data_address()
+{
+    return lora_read_reg(0x10);
+}
+
+static void lora_set_fifo_buffer_address(uint8_t address)
+{
+    lora_write_reg(0x0D, address);
+}
+
 static void lora_read_rx_data()
 {
-    uint8_t nbytes = 0;
-    lora_write_reg(0x0D, lora_read_reg(0x10));
-    nbytes = lora_read_reg(0x13);
+    lora_set_fifo_buffer_address(lora_get_rx_data_address());
+    uint8_t nbytes = lora_get_rx_data_len();
     spi_chip_enable();
     SPDR = 0x00;
     spi_wait_write();
@@ -338,12 +363,17 @@ static void lora_read_rx_data()
     uart_tx('\n');
 }
 
-static void lora_check_rx_complete_and_read()
+static uint8_t lora_check_rx_done()
+{
+    return !!(0b1000000 & lora_read_reg(0x12));
+}
+
+static void lora_check_rx_done_and_read()
 {
     if(!(PINB & 0b10))
         return;
     p_line("RECEIVED!");
-    if(!(0b1000000 & lora_read_reg(0x12)))
+    if(!lora_check_rx_done())
         return;
     lora_read_rx_data();
 }
@@ -376,7 +406,7 @@ int main(void)
             }
         }
         else {
-            lora_check_rx_complete_and_read();
+            lora_check_rx_done_and_read();
         }
     } 
     return 1;
