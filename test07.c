@@ -126,6 +126,21 @@ static void p_str(const char* str)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+static void led_init()
+{
+    DDRC |= 0b00000001;
+}
+
+static void led_flash()
+{
+    PORTC |= 0b00000001;
+    _delay_ms(20);
+    PORTC &= ~0b00000001;
+    _delay_ms(20);
+}
+
+///////////////////////////////////////////////////////////////////////////////
 static void lora_reset()
 {
     PORTB &= ~(1 << PB0);
@@ -351,6 +366,8 @@ static void lora_read_rx_data()
 {
     lora_set_fifo_buffer_address(lora_get_rx_data_address());
     uint8_t nbytes = lora_get_rx_data_len();
+    if(nbytes == 5)
+        led_flash();
     spi_chip_enable();
     SPDR = 0x00;
     spi_wait_write();
@@ -374,6 +391,7 @@ static void lora_check_rx_done_and_read()
 {
     if(!(PINB & 0b10))
         return;
+    led_flash();
     p_line("RECEIVED!");
     if(!lora_check_rx_done())
         return;
@@ -394,6 +412,7 @@ static void sys_init()
 int main(void)
 {
     sys_init();
+    led_init();
     lora_init();
     while(1) {
         sleep_cpu();
@@ -408,6 +427,7 @@ int main(void)
             }
         }
         else {
+            led_flash();
             lora_check_rx_done_and_read();
         }
     } 
