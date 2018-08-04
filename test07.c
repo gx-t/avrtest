@@ -19,6 +19,7 @@ PB3 -- MOSI
 PB4 -- MISO
 PB5 -- SCK
 
+Interrupts: RTC (timer 2 overflow), UART RX, pin change PB1
 !! PB2 -- 100K -- VCC (disable loRa during ASP programming)
 
 SX1276/77/78/79 datasheet:
@@ -32,10 +33,31 @@ ECR = "error coding rate"
 AGC = "automatic gain control"
 OCP = "overcurrent protection"
 PA = "power amplifier"
+PCINT = "pin change interrupt"
 */
+
+struct {
+    uint8_t rtc     : 1;
+    uint8_t uart_rx : 1;
+    uint8_t lora_rx : 1;
+} static event = {0};
 
 ISR(TIMER2_OVF_vect)
 {
+    event.rtc = 1;
+}
+
+ISR(PCINT0_vect)
+{
+    if(!(PINB & 0b10))
+        return;
+    event.lora_rx = 1;
+}
+
+static void sys_enable_pcint1()
+{
+    PCICR |= (1 << PCIE0);
+    PCMSK0 |= (1 << PCINT1);
 }
 
 static void rtc_init(void)
@@ -86,6 +108,9 @@ static void spi_wait_write()
 
 ISR(USART_RX_vect)
 {
+    if(!(UCSR0A & (1 << RXC0)))
+        return;
+    event.uart_rx = 1;
 }
 
 static void uart_init()
@@ -107,6 +132,11 @@ static void uart_tx(uint8_t data)
 {
     UDR0 = data;
     while (!(UCSR0A & (1 << UDRE0)));
+}
+
+static uint8_t uart_rx()
+{
+    return UDR0;
 }
 
 static void p_line(const char* pp)
@@ -132,12 +162,14 @@ static void led_init()
     DDRC |= 0b00000001;
 }
 
-static void led_flash()
+static void led_on()
 {
     PORTC |= 0b00000001;
-    _delay_ms(20);
+}
+
+static void led_off()
+{
     PORTC &= ~0b00000001;
-    _delay_ms(20);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -366,8 +398,12 @@ static void lora_read_rx_data()
 {
     lora_set_fifo_buffer_address(lora_get_rx_data_address());
     uint8_t nbytes = lora_get_rx_data_len();
-    if(nbytes == 5)
-        led_flash();
+    if(nbytes == 5) {
+        _delay_ms(50);
+        led_on();
+        _delay_ms(50);
+        led_off();
+    }
     spi_chip_enable();
     SPDR = 0x00;
     spi_wait_write();
@@ -389,9 +425,9 @@ static uint8_t lora_check_rx_done()
 
 static void lora_check_rx_done_and_read()
 {
-    if(!(PINB & 0b10))
-        return;
-    led_flash();
+    led_on();
+    _delay_ms(50);
+    led_off();
     p_line("RECEIVED!");
     if(!lora_check_rx_done())
         return;
@@ -406,7 +442,13 @@ static void sys_init()
     uart_init();
     rtc_init();
     spi_init();
+    sys_enable_pcint1();
     sei();
+}
+
+static void sys_wait_event()
+{
+    sleep_cpu();
 }
 
 int main(void)
@@ -415,9 +457,10 @@ int main(void)
     led_init();
     lora_init();
     while(1) {
-        sleep_cpu();
-        if(UCSR0A & (1 << RXC0)) {
-            uint8_t ch = UDR0;
+        sys_wait_event();
+        if(event.uart_rx) {
+            event.uart_rx = 0;
+            uint8_t ch = uart_rx();
             if(ch == '\r') {
                 uart_tx('\r');
                 uart_tx('\n');
@@ -426,9 +469,15 @@ int main(void)
                 uart_tx(ch);
             }
         }
-        else {
-            led_flash();
+        if(event.lora_rx) {
+            event.lora_rx = 0;
             lora_check_rx_done_and_read();
+        }
+        if(event.rtc) {
+            event.rtc = 0;
+            led_on();
+            _delay_ms(5);
+            led_off();
         }
     } 
     return 1;
