@@ -5,6 +5,15 @@
 #define F_CPU 8000000UL
 #include <util/delay.h>
 
+#define LORA_RST        (1 << PB0)
+#define LORA_RX_DONE    (1 << PB1)
+#define LORA_NSS        (1 << PB2)
+#define SPI_MOSI        (1 << PB3)
+#define SPI_MISO        (1 << PB4)
+#define SPI_SCK         (1 << PB5)
+
+#define LED_PIN         (1 << PC0)
+
 /*
 ATMEGA328 + LoRa RA01 receive mode
 ATMEGA 328P:
@@ -49,7 +58,7 @@ ISR(TIMER2_OVF_vect)
 
 ISR(PCINT0_vect)
 {
-    if(!(PINB & 0b10))
+    if(!(PINB & LORA_RX_DONE))
         return;
     event.lora_rx = 1;
 }
@@ -71,20 +80,19 @@ static void rtc_init(void)
 ///////////////////////////////////////////////////////////////////////////////
 static void spi_init()
 {
-    // CLK, MISO, MOSI, NSS, RX-INT, RST
-    DDRB = 0b101101;
+    DDRB = LORA_RST | LORA_NSS | SPI_MOSI | SPI_SCK;
     SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPI2X); //enable SPI-master, clock/2 speed
-    PORTB |= (1 << PB2);
+    PORTB |= LORA_NSS;
 }
 
 static void spi_chip_enable()
 {
-    PORTB &= ~(1 << PB2);
+    PORTB &= ~LORA_NSS;
 }
 
 static void spi_chip_disable()
 {
-    PORTB |= (1 << PB2);
+    PORTB |= LORA_NSS;
 }
 
 static void spi_wait_write()
@@ -159,25 +167,25 @@ static void p_str(const char* str)
 
 static void led_init()
 {
-    DDRC |= 0b00000001;
+    DDRC |= LED_PIN;
 }
 
 static void led_on()
 {
-    PORTC |= 0b00000001;
+    PORTC |= LED_PIN;
 }
 
 static void led_off()
 {
-    PORTC &= ~0b00000001;
+    PORTC &= ~LED_PIN;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 static void lora_reset()
 {
-    PORTB &= ~(1 << PB0);
+    PORTB &= ~LORA_RST;
     _delay_us(100);
-    PORTB |= (1 << PB0);
+    PORTB |= LORA_RST;
     _delay_ms(5);
 }
 
