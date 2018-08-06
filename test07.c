@@ -45,24 +45,6 @@ PA = "power amplifier"
 PCINT = "pin change interrupt"
 */
 
-struct {
-    uint8_t rtc     : 1;
-    uint8_t uart_rx : 1;
-    uint8_t lora_rx : 1;
-} static event = {0};
-
-ISR(TIMER2_OVF_vect)
-{
-    event.rtc = 1;
-}
-
-ISR(PCINT0_vect)
-{
-    if(!(PINB & LORA_RX_DONE))
-        return;
-    event.lora_rx = 1;
-}
-
 static void sys_enable_pcint1()
 {
     PCICR |= (1 << PCIE0);
@@ -114,13 +96,6 @@ static void spi_wait_write()
 #define USART_BAUD 38400UL
 #define USART_UBBR_VALUE ((F_CPU / (USART_BAUD << 4)) - 1)
 
-ISR(USART_RX_vect)
-{
-    if(!(UCSR0A & (1 << RXC0)))
-        return;
-    event.uart_rx = 1;
-}
-
 static void uart_init()
 {
     UBRR0H = (uint8_t) (USART_UBBR_VALUE >> 8);
@@ -147,15 +122,29 @@ static uint8_t uart_rx()
     return UDR0;
 }
 
-static void p_line(const char* pp)
+ISR(USART_RX_vect)
 {
-    while(*pp) {
-        uart_tx(*pp++);
+    if(!(UCSR0A & (1 << RXC0)))
+        return;
+    uint8_t ch = uart_rx();
+    if(ch == '\r') {
+        uart_tx('\r');
+        uart_tx('\n');
     }
-    uart_tx('\r');
-    uart_tx('\n');
+    else {
+        uart_tx(ch);
+    }
 }
 
+//static void p_line(const char* pp)
+//{
+//    while(*pp) {
+//        uart_tx(*pp++);
+//    }
+//    uart_tx('\r');
+//    uart_tx('\n');
+//}
+//
 static void p_str(const char* str)
 {
     while(*str) {
@@ -178,6 +167,10 @@ static void led_on()
 static void led_off()
 {
     PORTC &= ~LED_PIN;
+}
+
+ISR(TIMER2_OVF_vect)
+{
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -406,12 +399,6 @@ static void lora_read_rx_data()
 {
     lora_set_fifo_buffer_address(lora_get_rx_data_address());
     uint8_t nbytes = lora_get_rx_data_len();
-    if(nbytes == 5) {
-        _delay_ms(50);
-        led_on();
-        _delay_ms(50);
-        led_off();
-    }
     spi_chip_enable();
     SPDR = 0x00;
     spi_wait_write();
@@ -433,13 +420,16 @@ static uint8_t lora_check_rx_done()
 
 static void lora_check_rx_done_and_read()
 {
-    led_on();
-    _delay_ms(50);
-    led_off();
-    p_line("RECEIVED!");
     if(!lora_check_rx_done())
         return;
     lora_read_rx_data();
+}
+
+ISR(PCINT0_vect)
+{
+    if(!(PINB & LORA_RX_DONE))
+        return;
+    lora_check_rx_done_and_read();
 }
 
 static void sys_init()
@@ -466,27 +456,9 @@ int main(void)
     lora_init();
     while(1) {
         sys_wait_event();
-        if(event.uart_rx) {
-            event.uart_rx = 0;
-            uint8_t ch = uart_rx();
-            if(ch == '\r') {
-                uart_tx('\r');
-                uart_tx('\n');
-            }
-            else {
-                uart_tx(ch);
-            }
-        }
-        if(event.lora_rx) {
-            event.lora_rx = 0;
-            lora_check_rx_done_and_read();
-        }
-        if(event.rtc) {
-            event.rtc = 0;
-            led_on();
-            _delay_ms(5);
-            led_off();
-        }
+        led_on();
+        _delay_ms(20);
+        led_off();
     } 
     return 1;
 }
