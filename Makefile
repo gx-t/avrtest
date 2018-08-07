@@ -43,7 +43,7 @@ all:
 	avrdude -c USBASP -p m328p -U flash:w:test06.hex -U lfuse:w:0xc2:m 
 
 07:
-	avr-gcc -mmcu=atmega328p -Wall -Werror -Os -s test07.c -o test07.elf
+	avr-gcc -mmcu=atmega328p -Wno-unused-function -Wall -Werror -Os -s test07.c -o test07.elf
 	avr-objcopy -j .text -j .data -O ihex test07.elf test07.hex
 	rm *.elf
 	avrdude -c USBASP -p m328p -U flash:w:test07.hex -U lfuse:w:0xc2:m 
