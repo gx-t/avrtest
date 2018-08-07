@@ -237,12 +237,22 @@ static void lora_set_lora_mode()
     lora_update_reg(0x01, 0x7F, 0x80);
 }
 
+static void lora_set_payload_length_5()
+{
+    lora_write_reg(0x22, 0x05);
+}
+
 static void lora_set_explicit_header()
 {
     lora_update_reg(0x1D, 0xFE, 0x00);
 }
 
-static void lora_set_error_crc_cr8()
+static void lora_set_implicit_header()
+{
+    lora_update_reg(0x1D, 0xFE, 0x01);
+}
+
+static void lora_set_error_crc_cr_4_8()
 {
     lora_update_reg(0x1D, 0xF1, 4 << 1);
 }
@@ -252,9 +262,19 @@ static void lora_set_bandwidth_62_5()
     lora_update_reg(0x1D, 0x0F, 6 << 4);
 }
 
+static void lora_set_bandwidth_7_8()
+{
+    lora_update_reg(0x1D, 0x0F, 0 << 4);
+}
+
 static void lora_set_sf_12()
 {
     lora_update_reg(0x1E, 0x0F, 12 << 4);
+}
+
+static void lora_set_sf_8()
+{
+    lora_update_reg(0x1E, 0x0F, 8 << 4);
 }
 
 static void lora_set_crc_off()
@@ -355,10 +375,11 @@ static void lora_init()
     lora_print_reg(0x42); //chip version, must be 0x12
     lora_set_sleep_mode();
     lora_set_lora_mode();
-    lora_set_explicit_header();
-    lora_set_error_crc_cr8();
-    lora_set_bandwidth_62_5();
-    lora_set_sf_12();
+    lora_set_payload_length_5(); //needed for implicit header mode
+    lora_set_implicit_header();
+    lora_set_error_crc_cr_4_8();
+    lora_set_bandwidth_7_8();
+    lora_set_sf_8();
     lora_set_crc_off();
     lora_set_ocp_off();
     lora_set_max_tx_power_20dbm();
