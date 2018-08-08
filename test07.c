@@ -364,9 +364,19 @@ static void lora_map_rx_to_dio0()
     lora_write_reg(0x40, 0 << 6);
 }
 
+static void lora_map_tx_to_dio0()
+{
+    lora_write_reg(0x40, 1 << 6);
+}
+
 static void lora_set_rx_cont_mode()
 {
     lora_update_reg(0x01, 0b11111000, 0b101);
+}
+
+static void lora_set_tx_mode()
+{
+    lora_update_reg(0x01, 0b11111000, 0b011);
 }
 
 static void lora_init()
