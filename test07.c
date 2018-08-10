@@ -454,6 +454,8 @@ static uint8_t lora_check_rx_done()
 
 static void lora_check_rx_done_and_read()
 {
+    if(!(PINB & LORA_RX_DONE))
+        return;
     if(!lora_check_rx_done())
         return;
     lora_read_rx_data();
@@ -461,8 +463,6 @@ static void lora_check_rx_done_and_read()
 
 ISR(PCINT0_vect)
 {
-    if(!(PINB & LORA_RX_DONE))
-        return;
     lora_check_rx_done_and_read();
 }
 
