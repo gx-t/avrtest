@@ -7,6 +7,7 @@
 
 #define LORA_RST        (1 << PB0)
 #define LORA_RX_DONE    (1 << PB1)
+#define LORA_TX_DONE    (1 << PB1)
 #define LORA_NSS        (1 << PB2)
 #define SPI_MOSI        (1 << PB3)
 #define SPI_MISO        (1 << PB4)
@@ -54,12 +55,17 @@ static void sys_enable_pcint1()
     PCMSK0 |= (1 << PCINT1);
 }
 
-static void rtc_init(void)
+static void rtc_start_1s()
 {  
     TCCR2A = 0x00;  //overflow
     TCCR2B = 0x05;  //5 gives 1 sec. prescale 
     TIMSK2 = 0x01;  //enable timer2A overflow interrupt
     ASSR  = 0x20;   //enable asynchronous mode
+}
+
+static void rtc_stop_int()
+{
+    TIMSK2 = 0x00;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -125,34 +131,18 @@ static uint8_t uart_rx()
     return UDR0;
 }
 
-ISR(USART_RX_vect)
-{
-    if(!(UCSR0A & (1 << RXC0)))
-        return;
-    uint8_t ch = uart_rx();
-    if(ch == '\r') {
-        uart_tx('\r');
-        uart_tx('\n');
-    }
-    else {
-        uart_tx(ch);
-    }
-}
-
-//static void p_line(const char* pp)
-//{
-//    while(*pp) {
-//        uart_tx(*pp++);
-//    }
-//    uart_tx('\r');
-//    uart_tx('\n');
-//}
-//
 static void p_str(const char* str)
 {
     while(*str) {
         uart_tx(*str++);
     }
+}
+
+static void p_line(const char* pp)
+{
+    p_str(pp);
+    uart_tx('\r');
+    uart_tx('\n');
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -170,10 +160,6 @@ static void led_on()
 static void led_off()
 {
     PORTC &= ~LED_PIN;
-}
-
-ISR(TIMER2_OVF_vect)
-{
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -379,8 +365,9 @@ static void lora_set_tx_mode()
     lora_update_reg(0x01, 0b11111000, 0b011);
 }
 
-static void lora_init()
+static void lora_init_rx()
 {
+    rtc_stop_int();
     lora_reset();
     lora_print_reg(0x42); //chip version, must be 0x12
     lora_set_sleep_mode();
@@ -407,6 +394,51 @@ static void lora_init()
     lora_set_standby_mode();
     lora_map_rx_to_dio0();
     lora_set_rx_cont_mode();
+}
+
+static void lora_init_tx()
+{
+    lora_reset();
+    lora_print_reg(0x42); //chip version, must be 0x12
+    lora_set_sleep_mode();
+    lora_set_lora_mode();
+    lora_set_implicit_header();
+    lora_set_error_crc_cr_4_8();
+    lora_set_bandwidth_7_8();
+    lora_set_sf_8();
+    lora_set_crc_off();
+    lora_set_ocp_off();
+    lora_set_max_tx_power_20dbm();
+    lora_set_pa_boost_20dbm();
+    lora_set_syncword_0x12();
+    lora_set_preample_len_6();
+    lora_set_agc_on();
+    lora_set_lna_gain_highest();
+    lora_reset_tx_base_address();
+    lora_reset_rx_base_address();
+    lora_set_detection_optimize_for_sf_7to12();
+    lora_set_detection_threshold_for_sf_7to12();
+    lora_set_freq_434800000();
+    lora_set_low_data_optimize_on();
+    lora_set_standby_mode();
+    rtc_start_1s();
+}
+
+ISR(USART_RX_vect)
+{
+    if(!(UCSR0A & (1 << RXC0)))
+        return;
+    uint8_t ch = uart_rx();
+    if('r' == ch) {
+        p_line("RX mode.");
+        lora_init_rx();
+        return;
+    }
+    if('t' == ch) {
+        p_line("TX mode.");
+        lora_init_tx();
+        return;
+    }
 }
 
 static void lora_reset_irq_flags()
@@ -447,6 +479,29 @@ static void lora_read_rx_data()
     uart_tx('\n');
 }
 
+static void lora_send_tx_data()
+{
+    static const char* data = "lOrA";
+    const char* pp = data;
+    uint8_t nn = 5;
+    lora_set_fifo_buffer_address(0x00);
+    lora_set_payload_length_5();
+    spi_chip_enable();
+    SPDR = 0x00 | 0x80;
+    spi_wait_write();
+    while(nn --) {
+        SPDR = *pp ++;
+        spi_wait_write();
+    }
+    spi_chip_disable();
+    lora_set_tx_mode();
+}
+
+ISR(TIMER2_OVF_vect)
+{
+    lora_send_tx_data();
+}
+
 static uint8_t lora_check_rx_done()
 {
     return !!(0b1000000 & lora_read_reg(0x12));
@@ -472,7 +527,7 @@ static void sys_init()
     set_sleep_mode(SLEEP_MODE_IDLE);
     sleep_enable();
     uart_init();
-    rtc_init();
+//    rtc_init();
     spi_init();
     sys_enable_pcint1();
     sei();
@@ -487,7 +542,7 @@ int main(void)
 {
     sys_init();
     led_init();
-    lora_init();
+    lora_init_rx();
     while(1) {
         sys_wait_event();
         led_on();
