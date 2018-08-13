@@ -15,6 +15,14 @@
 
 #define LED_PIN         (1 << PC0)
 
+//TODO:
+//Test single receive mode
+//Measure current consumption in single receive mode
+//Separate common initialisation part
+//Clean up TX mode initialization from RX parts (stop LNA boost, low sensitivity)
+//Clean up RX mode from TX parts (PA related)
+//Command send-receive mode
+
 /*
 ATMEGA328 + LoRa RA01 receive mode
 ATMEGA 328P:
