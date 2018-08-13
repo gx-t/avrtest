@@ -16,8 +16,9 @@
 #define LED_PIN         (1 << PC0)
 
 //TODO:
-//Test single receive mode
-//Measure current consumption in single receive mode
+//Test single receive mode ... done. Pointless if called immediately after prev. receive
+//Measure current consumption in single receive mode ... done. Same as in cont. mode if called imm. after rcv.
+//Setup TX interrupt mode
 //Separate common initialisation part
 //Clean up TX mode initialization from RX parts (stop LNA boost, low sensitivity)
 //Clean up RX mode from TX parts (PA related)
@@ -119,7 +120,6 @@ static void uart_init()
     UBRR0L = (uint8_t) USART_UBBR_VALUE;
 
     UCSR0A = 0;
-
 
     //Enable UART
     UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);
@@ -368,9 +368,34 @@ static void lora_set_rx_cont_mode()
     lora_update_reg(0x01, 0b11111000, 0b101);
 }
 
+static void lora_set_rx_mode()
+{
+    lora_update_reg(0x01, 0b11111000, 0b110);
+}
+
 static void lora_set_tx_mode()
 {
     lora_update_reg(0x01, 0b11111000, 0b011);
+}
+
+static void lora_reset_irq_flags()
+{
+    lora_write_reg(0x12, 0xff);
+}
+
+static uint8_t lora_get_rx_data_len()
+{
+    return lora_read_reg(0x13);
+}
+
+static uint8_t lora_get_rx_data_address()
+{
+    return lora_read_reg(0x10);
+}
+
+static void lora_set_fifo_buffer_address(uint8_t address)
+{
+    lora_write_reg(0x0D, address);
 }
 
 static void lora_init_rx()
@@ -401,7 +426,8 @@ static void lora_init_rx()
     lora_set_low_data_optimize_on();
     lora_set_standby_mode();
     lora_map_rx_to_dio0();
-    lora_set_rx_cont_mode();
+//    lora_set_rx_cont_mode();
+    lora_set_rx_mode();
 }
 
 static void lora_init_tx()
@@ -437,6 +463,10 @@ ISR(USART_RX_vect)
     if(!(UCSR0A & (1 << RXC0)))
         return;
     uint8_t ch = uart_rx();
+    if('\r' == ch) {
+        p_line("");
+        return;
+    }
     if('r' == ch) {
         p_line("RX mode.");
         lora_init_rx();
@@ -447,26 +477,6 @@ ISR(USART_RX_vect)
         lora_init_tx();
         return;
     }
-}
-
-static void lora_reset_irq_flags()
-{
-    lora_write_reg(0x12, 0xff);
-}
-
-static uint8_t lora_get_rx_data_len()
-{
-    return lora_read_reg(0x13);
-}
-
-static uint8_t lora_get_rx_data_address()
-{
-    return lora_read_reg(0x10);
-}
-
-static void lora_set_fifo_buffer_address(uint8_t address)
-{
-    lora_write_reg(0x0D, address);
 }
 
 static void lora_read_rx_data()
@@ -527,6 +537,8 @@ static void lora_check_rx_done_and_read()
 ISR(PCINT0_vect)
 {
     lora_check_rx_done_and_read();
+    lora_set_standby_mode();
+    lora_set_rx_mode();
 }
 
 static void sys_init()
