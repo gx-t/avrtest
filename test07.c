@@ -35,6 +35,34 @@
 */
 
 /*
+JS calculations:
+function calc_t_sym(sf, bw)
+{
+        return 2 ** sf / bw;
+}
+
+calc_t_sym(8, 7800);
+0.03282051282051282
+
+function calc_preample_t(n, tsym)
+{
+        return (n + 4.25) * tsym;
+}
+
+calc_preample_t(6, 0.03282051282051282);
+0.3364102564102564
+
+function calc_payload_symb_nb(pl, sf, h, de, cr)
+{
+        return 8 + Math.max(Math.ceil((8*pl - 4*sf +28 +16 - 20*h) / 4 / (sf - 2 * de)) * (cr + 4), 0);
+}
+
+calc_payload_symb_nb(1, 8, 0, 0, 1);
+13
+
+*/
+
+/*
 ATMEGA328 + LoRa RA01 receive mode
 ATMEGA 328P:
 RTC: 9-10 32768 Hz QZ 
