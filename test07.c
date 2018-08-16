@@ -15,14 +15,24 @@
 
 #define LED_PIN         (1 << PC0)
 
-//TODO:
-//Test single receive mode ... done. Pointless if called immediately after prev. receive
-//Measure current consumption in single receive mode ... done. Same as in cont. mode if called imm. after rcv.
-//Setup TX interrupt mode
-//Separate common initialisation part
-//Clean up TX mode initialization from RX parts (stop LNA boost, low sensitivity)
-//Clean up RX mode from TX parts (PA related)
-//Command send-receive mode
+/*TODO:
+  Test single receive mode ... done. Pointless if called immediately after prev.
+  Measure current consumption in single receive mode ... done. Same as in cont. mode if called immediately.
+
+  Check if pull-up on UART protects from inducted interrupts
+  Build setup on hard plate
+  Use 1 byte data for test
+  Check exact value on receiver side
+  Use only RTC interrupt
+  Setup TX pin
+
+  Separate common initialisation part
+  Clean up TX mode initialization from RX parts (stop LNA boost, low sensitivity)
+  Clean up RX mode from TX parts (PA related)
+  Add voltage and temperature monitoring
+
+  Command send-receive mode
+*/
 
 /*
 ATMEGA328 + LoRa RA01 receive mode
