@@ -54,6 +54,9 @@ Interrupts: RTC (timer 2 overflow), UART RX, pin change PB1
 SX1276/77/78/79 datasheet:
 https://www.semtech.com/uploads/documents/DS_SX1276-7-8-9_W_APP_V5.pdf
 
+Designer’s Guide. AN1200.13
+https://www.semtech.com/uploads/documents/LoraDesignGuide_STD.pdf
+
 Decoding LoRa - modulation, SF, CR, BW:
 https://revspace.nl/DecodingLora
 
