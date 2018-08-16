@@ -19,10 +19,10 @@
   Test single receive mode ... done. Pointless if called immediately after prev.
   Measure current consumption in single receive mode ... done. Same as in cont. mode if called immediately.
 
-  Check if pull-up on UART protects from inducted interrupts
+  Check if pull-up on UART protects from inducted interrupts ... done, ok.
   Build setup on hard plate
-  Use 1 byte data for test
-  Check exact value on receiver side
+  Use 1 byte data for test ... done, ok
+  Check exact value on receiver side ... done, ok
   Use only RTC interrupt
   Setup TX pin
 
@@ -105,12 +105,17 @@ static void sys_enable_pcint1()
     PCMSK0 |= (1 << PCINT1);
 }
 
-static void rtc_start_1s()
+static void rtc_start()
 {  
     TCCR2A = 0x00;  //overflow
     TCCR2B = 0x05;  //5 gives 1 sec. prescale 
     TIMSK2 = 0x01;  //enable timer2A overflow interrupt
     ASSR  = 0x20;   //enable asynchronous mode
+}
+
+static void rtc_set_2s()
+{
+    TCCR2B = 0x06;  //5 gives 1 sec. prescale 
 }
 
 static void rtc_stop_int()
@@ -270,6 +275,11 @@ static void lora_set_sleep_mode()
 static void lora_set_lora_mode()
 {
     lora_update_reg(0x01, 0x7F, 0x80);
+}
+
+static void lora_set_payload_length_1()
+{
+    lora_write_reg(0x22, 0x01);
 }
 
 static void lora_set_payload_length_5()
@@ -446,7 +456,7 @@ static void lora_init_rx()
     lora_print_reg(0x42); //chip version, must be 0x12
     lora_set_sleep_mode();
     lora_set_lora_mode();
-    lora_set_payload_length_5(); //needed for implicit header mode
+    lora_set_payload_length_1(); //needed for implicit header mode
     lora_set_implicit_header();
     lora_set_error_crc_cr_4_8();
     lora_set_bandwidth_7_8();
@@ -467,8 +477,7 @@ static void lora_init_rx()
     lora_set_low_data_optimize_on();
     lora_set_standby_mode();
     lora_map_rx_to_dio0();
-//    lora_set_rx_cont_mode();
-    lora_set_rx_mode();
+    lora_set_rx_cont_mode();
 }
 
 static void lora_init_tx()
@@ -496,7 +505,8 @@ static void lora_init_tx()
     lora_set_freq_434800000();
     lora_set_low_data_optimize_on();
     lora_set_standby_mode();
-    rtc_start_1s();
+    rtc_start();
+    rtc_set_2s();
 }
 
 ISR(USART_RX_vect)
@@ -524,13 +534,17 @@ static void lora_read_rx_data()
 {
     lora_set_fifo_buffer_address(lora_get_rx_data_address());
     uint8_t nbytes = lora_get_rx_data_len();
+    if(1 == nbytes)
+        led_on();
     spi_chip_enable();
     SPDR = 0x00;
     spi_wait_write();
     while(nbytes --) {
         SPDR = 0;
         spi_wait_write();
-        uart_tx(SPDR);
+        uint8_t bt = SPDR;
+        'L' == bt ? led_on() : led_off();
+        uart_tx(bt);
     }
     spi_chip_disable();
     lora_reset_irq_flags();
@@ -540,9 +554,10 @@ static void lora_read_rx_data()
 
 static void lora_send_tx_data()
 {
-    static const char* data = "lOrA";
+    led_on();
+    static const char* data = "L";
     const char* pp = data;
-    uint8_t nn = 5;
+    uint8_t nn = 1;
     lora_set_fifo_buffer_address(0x00);
     lora_set_payload_length_5();
     spi_chip_enable();
@@ -578,8 +593,6 @@ static void lora_check_rx_done_and_read()
 ISR(PCINT0_vect)
 {
     lora_check_rx_done_and_read();
-    lora_set_standby_mode();
-    lora_set_rx_mode();
 }
 
 static void sys_init()
@@ -606,7 +619,6 @@ int main(void)
     lora_init_rx();
     while(1) {
         sys_wait_event();
-        led_on();
         _delay_ms(20);
         led_off();
     } 
