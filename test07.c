@@ -27,6 +27,24 @@ JS calculations:
 function calc_t_sym(sf, bw)
 {
         return 2 ** sf / bw;
+    struct {
+        uint8_t ih : 1;
+        uint8_t cr : 3;
+        uint8_t bw : 4;
+    } val;
+    static const char* cr_list[] = {
+        "4/5", "4/6", "4/7", "4/8"
+    };
+    static const char* bw_list[] = {
+        "7.8", "10.4", "15.6", "20.8", "31.25", "41.7", "62.5", "125", "250", "500"
+    };
+    *(uint8_t*)&val = lora_read_reg(0x1D);
+    p_str("Explicit Header: ");
+    p_line(val.ih ? "OFF" : "ON");
+    p_str("CR: ");
+    p_line(4 < val.cr || 1 > val.cr ? "INVALID" : cr_list[val.cr - 1]);
+    p_str("BW: ");
+    9 < val.bw ? p_line("INVALID") : p_str(bw_list[val.bw]), p_line("kHz");
 }
 
 calc_t_sym(8, 7800);
@@ -115,37 +133,17 @@ static void sys_enable_pcint1()
 static void rtc_init()
 {  
     TCCR2A = 0x00;  //overflow
-    TCCR2B = 0x00;  //0 - stop RTC 
-    TIMSK2 = 0x01;  //enable timer2A overflow interrupt
+    TCCR2B = 0x03;  //0.25 s
+	TIMSK2 = 0x01;  //enable timer2A overflow interrupt
     ASSR  = 0x20;   //enable asynchronous mode
 }
 
-static void rtc_set_250ms()
+ISR(TIMER2_OVF_vect)
 {
-    TCCR2B = 0x03;
-}
-
-static void rtc_set_1s()
-{
-    TCCR2B = 0x05;
-}
-
-static void rtc_set_2s()
-{
-    TCCR2B = 0x06;
-}
-
-static void rtc_stop()
-{
-    TCCR2B = 0x00;
-}
-
-static void rtc_reset()
-{
-    TCNT2 = 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
 static void spi_init()
 {
     DDRB = LORA_RST | LORA_NSS | SPI_MOSI | SPI_SCK;
@@ -168,17 +166,9 @@ static void spi_wait_write()
     while(!(SPSR & (1 << SPIF)));
 }
 
-//static void spi_write_byte(uint8_t data)
-//{
-//    spi_chip_enable();
-//    SPDR = data;
-//    while(!(SPSR & (1 << SPIF))); //wait for write end
-//    spi_chip_disable();
-//    return SPDR;
-//}
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
 #define USART_BAUD 38400UL
 #define USART_UBBR_VALUE ((F_CPU / (USART_BAUD << 4)) - 1)
 
@@ -223,11 +213,18 @@ static void p_line(const char* pp)
     uart_tx('\n');
 }
 
+static void p_name_value(const char* name, const char* val, const char* units)
+{
+    p_str(name);
+    p_str(" = ");
+    p_str(val);
+    p_line(units);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 static void sys_error()
 {
-    rtc_set_250ms();
     while(1) {
         led_on();
         sleep_cpu();
@@ -277,12 +274,29 @@ static void p_hex_digit(uint8_t val)
     uart_tx(hex_chars[(val & 0x0F)]);
 }
 
+static void p_binary(uint8_t val)
+{
+    uint8_t i = 0b10000000;
+    while(i > 0b00001000) {
+        uart_tx(val & i ? '1' : '0');
+        i >>= 1;
+    }
+    uart_tx('.');
+    while(i) {
+        uart_tx(val & i ? '1' : '0');
+        i >>= 1;
+    }
+}
+
 static void lora_print_reg(uint8_t reg)
 {
+    uint8_t val = lora_read_reg(reg);
     p_str("REG ");
     p_hex_digit(reg);
-    p_str("=");
-    p_hex_digit(lora_read_reg(reg));
+    p_str(" = ");
+    p_hex_digit(val);
+    p_str(" = ");
+    p_binary(val);
     uart_tx('\r');
     uart_tx('\n');
 }
@@ -337,18 +351,6 @@ static void lora_set_bandwidth_7_8()
     lora_update_reg(0x1D, 0x0F, 0 << 4);
 }
 
-static const char* lora_get_bw()
-{
-    static const char* bw_list[] = {
-        "7.8", "10.4", "15.6", "20.8", "31.25", "41.7", "62.5", "125", "250", "500"
-    };
-    uint8_t val = lora_read_reg(0x1D);
-    val >>= 4;
-    if(val > 9)
-        return "INVALID";
-    return bw_list[val];
-}
-
 static void lora_set_sf_12()
 {
     lora_update_reg(0x1E, 0x0F, 12 << 4);
@@ -357,19 +359,6 @@ static void lora_set_sf_12()
 static void lora_set_sf_8()
 {
     lora_update_reg(0x1E, 0x0F, 8 << 4);
-}
-
-static const char* lora_get_sf()
-{
-    static const char* sf_list[] = {
-        "6", "7", "8", "9", "10", "11", "12"
-    };
-    uint8_t val = lora_read_reg(0x1E);
-    val >>= 4;
-    if(6 > val)
-        return "INVALID";
-    val -= 6;
-    return sf_list[val];
 }
 
 static void lora_set_crc_off()
@@ -529,34 +518,38 @@ static void lora_init_common()
     lora_set_standby_mode();
 }
 
-static void lora_init_rx()
+static void lora_switch_bw()
 {
-    rtc_stop();
-    lora_map_rx_to_dio0();
-    lora_set_rx_mode();
-    p_line("RX mode.");
+    uint8_t val = lora_read_reg(0x1D);
+    val >>= 4;
+    val ++;
+    if(9 < val)
+        val = 0;
+    lora_update_reg(0x1D, 0x0F, val << 4);
+    lora_print_reg(0x1D);
 }
 
-static void lora_init_tx()
+static void lora_switch_sf()
 {
-    rtc_reset();
-    rtc_set_2s();
-    lora_map_tx_to_dio0();
-    p_line("TX mode.");
+    uint8_t val = lora_read_reg(0x1E);
+    val >>= 4;
+    val ++;
+    if(12 < val)
+        val = 6;
+    lora_update_reg(0x1E, 0x0F, val << 4);
+    lora_print_reg(0x1E);
 }
 
-static void p_name_value(const char* name, const char* val, const char* units)
+static void lora_print_settings()
 {
-    p_str(name);
-    p_str(" = ");
-    p_str(val);
-    p_line(units);
-}
-
-static void show_settings()
-{
-    p_name_value("SF", lora_get_sf(), 0);
-    p_name_value("BW", lora_get_bw(), "kHz");
+    lora_print_reg(0x01);
+    lora_print_reg(0x06);
+    lora_print_reg(0x07);
+    lora_print_reg(0x08);
+    lora_print_reg(0x1D);
+    lora_print_reg(0x1E);
+    uart_tx('\r');
+    uart_tx('\n');
 }
 
 static void show_usage()
@@ -565,22 +558,9 @@ static void show_usage()
     p_line("i - Current settings");
     p_line("r - RX mode (default)");
     p_line("t - TX mode");
-}
-
-ISR(USART_RX_vect)
-{
-    if(!(UCSR0A & (1 << RXC0)))
-        return;
-    uint8_t ch = uart_rx();
-
-    if('i' == ch)
-        return show_settings();
-    if('r' == ch)
-        return lora_init_rx();
-    if('t' == ch)
-        return lora_init_tx();
-
-    show_usage();
+    p_line("w - Switch BW");
+    p_line("s - Switch SF");
+    p_line("q - Restart");
 }
 
 static void lora_read_rx_data()
@@ -590,9 +570,8 @@ static void lora_read_rx_data()
     SPDR = 0x00;
     spi_wait_write();
     uint8_t bt = SPDR;
-    'L' == bt ? led_on() : led_off();
     spi_chip_disable();
-    lora_set_rx_mode();
+    'L' == bt ? led_on() : led_off();
 }
 
 static void lora_send_tx_data()
@@ -605,11 +584,49 @@ static void lora_send_tx_data()
     spi_wait_write();
     spi_chip_disable();
     lora_set_tx_mode();
+    led_on();
 }
 
-ISR(TIMER2_OVF_vect)
+static void lora_init_rx()
 {
+    lora_map_rx_to_dio0();
+    lora_set_fifo_buffer_address(0x00);
+    lora_set_rx_cont_mode();
+    p_line("RX mode.");
+}
+
+static void lora_init_tx()
+{
+    lora_map_tx_to_dio0();
+    p_line("TX mode.");
     lora_send_tx_data();
+}
+
+static void lora_restart()
+{
+    lora_init_common();
+    lora_init_rx();
+    lora_print_settings();
+}
+
+ISR(USART_RX_vect)
+{
+    if(!(UCSR0A & (1 << RXC0)))
+        return;
+    uint8_t ch = uart_rx();
+    if('i' == ch)
+        return lora_print_settings();
+    if('r' == ch)
+        return lora_init_rx();
+    if('t' == ch)
+        return lora_init_tx();
+    if('w' == ch)
+        return lora_switch_bw();
+    if('s' == ch)
+        return lora_switch_sf();
+    if('q' == ch)
+        return lora_restart();
+    show_usage();
 }
 
 static uint8_t lora_check_rx_done()
@@ -622,31 +639,23 @@ static uint8_t lora_check_tx_done()
     return !!(0b0001000 & lora_read_reg(0x12));
 }
 
-static uint8_t lora_check_rx_done_continue()
-{
-    if(!lora_check_rx_done())
-        return 0;
-    lora_reset_irq();
-    lora_read_rx_data();
-    return 1;
-}
-
-static uint8_t lora_check_tx_done_continue()
-{
-    if(!lora_check_tx_done())
-        return 0;
-    lora_reset_irq();
-    led_on();
-    return 1;
-}
-
 ISR(PCINT0_vect)
 {
     if(!(PINB & LORA_RX_TX_DONE))
         return;
-    if(lora_check_rx_done_continue())
-        return;
-    lora_check_tx_done_continue();
+    uint8_t status = lora_read_reg(0x12);
+
+    do {
+        if(0b1000000 & status) {
+            lora_read_rx_data();
+            break;
+        }
+        else if(0b0001000 & status) {
+            lora_send_tx_data();
+            break;
+        }
+    }while(1);
+    lora_reset_irq();
 }
 
 static void sys_init()
@@ -657,14 +666,8 @@ static void sys_init()
     uart_init();
     spi_init();
     sys_enable_pcint1();
-    rtc_init();
     led_init();
     sei();
-}
-
-static void sys_wait_event()
-{
-    sleep_cpu();
 }
 
 int main(void)
@@ -672,11 +675,12 @@ int main(void)
     sys_init();
     lora_init_common();
     lora_init_rx();
+    lora_print_settings();
     while(1) {
-        sys_wait_event();
-        _delay_ms(20);
+        sleep_cpu();
+        _delay_ms(10);
         led_off();
     } 
-    return 1;
+    return 0;
 }
 
