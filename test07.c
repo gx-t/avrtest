@@ -16,7 +16,7 @@
 #define LED_PIN         (1 << PC0)
 
 /*TODO:
-  Try to write FIFO once and reset pos. for send
+  Try to write FIFO once and reset pos. for send ... done, write data to any offset, send reads from 0x00. Fifo stores data on extremely low power!
   Modify functions to remove lora_update_reg as much as possible create (register centered functions)
   Reset fifo to read
   Add voltage and temperature monitoring
@@ -28,25 +28,7 @@
 JS calculations:
 function calc_t_sym(sf, bw)
 {
-        return 2 ** sf / bw;
-    struct {
-        uint8_t ih : 1;
-        uint8_t cr : 3;
-        uint8_t bw : 4;
-    } val;
-    static const char* cr_list[] = {
-        "4/5", "4/6", "4/7", "4/8"
-    };
-    static const char* bw_list[] = {
-        "7.8", "10.4", "15.6", "20.8", "31.25", "41.7", "62.5", "125", "250", "500"
-    };
-    *(uint8_t*)&val = lora_read_reg(0x1D);
-    p_str("Explicit Header: ");
-    p_line(val.ih ? "OFF" : "ON");
-    p_str("CR: ");
-    p_line(4 < val.cr || 1 > val.cr ? "INVALID" : cr_list[val.cr - 1]);
-    p_str("BW: ");
-    9 < val.bw ? p_line("INVALID") : p_str(bw_list[val.bw]), p_line("kHz");
+    return 2 ** sf / bw;
 }
 
 calc_t_sym(8, 7800);
@@ -54,7 +36,7 @@ calc_t_sym(8, 7800);
 
 function calc_preample_t(n, tsym)
 {
-        return (n + 4.25) * tsym;
+    return (n + 4.25) * tsym;
 }
 
 calc_preample_t(6, 0.03282051282051282);
@@ -62,7 +44,7 @@ calc_preample_t(6, 0.03282051282051282);
 
 function calc_payload_symb_nb(pl, sf, h, de, cr)
 {
-        return 8 + Math.max(Math.ceil((8*pl - 4*sf +28 +16 - 20*h) / 4 / (sf - 2 * de)) * (cr + 4), 0);
+    return 8 + Math.max(Math.ceil((8*pl - 4*sf +28 +16 - 20*h) / 4 / (sf - 2 * de)) * (cr + 4), 0);
 }
 
 calc_payload_symb_nb(1, 8, 0, 0, 1);
@@ -578,13 +560,6 @@ static void lora_read_rx_data()
 
 static void lora_send_tx_data()
 {
-    lora_set_fifo_buffer_address(0x00);
-    spi_chip_enable();
-    SPDR = 0x00 | 0x80;
-    spi_wait_write();
-    SPDR = 'L';
-    spi_wait_write();
-    spi_chip_disable();
     lora_set_tx_mode();
     led_on();
 }
@@ -601,6 +576,8 @@ static void lora_init_tx()
 {
     lora_map_tx_to_dio0();
     p_line("TX mode.");
+    lora_set_fifo_buffer_address(0x00);
+    lora_write_reg(0x00, 'L');
     lora_send_tx_data();
 }
 
