@@ -16,7 +16,9 @@
 #define LED_PIN         (1 << PC0)
 
 /*TODO:
-  Use only RTC interrupt
+  Try to write FIFO once and reset pos. for send
+  Modify functions to remove lora_update_reg as much as possible create (register centered functions)
+  Reset fifo to read
   Add voltage and temperature monitoring
 
   Command send-receive mode
