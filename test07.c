@@ -16,6 +16,7 @@
 #define LED_PIN         (1 << PC0)
 
 /*TODO:
+  Update 0x31 and 0x37 on SF change
   Try to write FIFO once and reset pos. for send ... done, write data to any offset, send reads from 0x00. Fifo stores data on extremely low power!
   Modify functions to remove lora_update_reg as much as possible create (register centered functions)
   Reset fifo to read
