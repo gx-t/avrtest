@@ -16,6 +16,7 @@
 #define LED_PIN         (1 << PC0)
 
 /*TODO:
+  Check power registers values ... fixed
   Display RSSI and SNR
   Update 0x31 and 0x37 on SF change ... OK
   Try to write FIFO once and reset pos. for send ... done, write data to any offset, send reads from 0x00. Fifo stores data on extremely low power!
@@ -351,7 +352,7 @@ static void lora_set_payload_length_5()
 static void lora_set_max_tx_power_20dbm()
 {
     lora_write_reg(0x4D, 0b10000111);
-    lora_write_reg(0x09, 0b11110010);
+    lora_write_reg(0x09, 0b11111111);
 }
 
 static void lora_set_syncword_0x12()
