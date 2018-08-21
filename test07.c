@@ -24,39 +24,39 @@
   Add voltage and temperature monitoring
 
   Command send-receive mode
-*/
+ */
 
 /*
-JS calculations:
-function calc_t_sym(sf, bw)
-{
-    return 2 ** sf / bw;
-}
+   JS calculations:
+   function calc_t_sym(sf, bw)
+   {
+   return 2 ** sf / bw;
+   }
 
-calc_t_sym(8, 7800);
-0.03282051282051282
+   calc_t_sym(8, 7800);
+   0.03282051282051282
 
-function calc_preample_t(n, tsym)
-{
-    return (n + 4.25) * tsym;
-}
+   function calc_preample_t(n, tsym)
+   {
+   return (n + 4.25) * tsym;
+   }
 
-calc_preample_t(6, 0.03282051282051282);
-0.3364102564102564
+   calc_preample_t(6, 0.03282051282051282);
+   0.3364102564102564
 
-function calc_payload_symb_nb(pl, sf, h, de, cr)
-{
-    return 8 + Math.max(Math.ceil((8*pl - 4*sf +28 +16 - 20*h) / 4 / (sf - 2 * de)) * (cr + 4), 0);
-}
+   function calc_payload_symb_nb(pl, sf, h, de, cr)
+   {
+   return 8 + Math.max(Math.ceil((8*pl - 4*sf +28 +16 - 20*h) / 4 / (sf - 2 * de)) * (cr + 4), 0);
+   }
 
-calc_payload_symb_nb(1, 8, 0, 0, 1);
-13
+   calc_payload_symb_nb(1, 8, 0, 0, 1);
+   13
 
-*/
+ */
 
 /*
-ATMEGA328 + LoRa RA01 receive mode
-ATMEGA 328P:
+   ATMEGA328 + LoRa RA01 receive mode
+   ATMEGA 328P:
 RTC: 9-10 32768 Hz QZ 
 9 -- 32768HZ -- 10
 Serial in/out
@@ -89,7 +89,7 @@ AGC = "automatic gain control"
 OCP = "overcurrent protection"
 PA = "power amplifier"
 PCINT = "pin change interrupt"
-*/
+ */
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -120,7 +120,7 @@ static void rtc_init()
 {  
     TCCR2A = 0x00;  //overflow
     TCCR2B = 0x03;  //0.25 s
-	TIMSK2 = 0x01;  //enable timer2A overflow interrupt
+    TIMSK2 = 0x01;  //enable timer2A overflow interrupt
     ASSR  = 0x20;   //enable asynchronous mode
 }
 
@@ -211,6 +211,7 @@ static void p_name_value(const char* name, const char* val, const char* units)
 
 static void sys_error()
 {
+    rtc_init();
     while(1) {
         led_on();
         sleep_cpu();
