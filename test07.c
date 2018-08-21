@@ -16,9 +16,10 @@
 #define LED_PIN         (1 << PC0)
 
 /*TODO:
-  Update 0x31 and 0x37 on SF change
+  Display RSSI and SNR
+  Update 0x31 and 0x37 on SF change ... OK
   Try to write FIFO once and reset pos. for send ... done, write data to any offset, send reads from 0x00. Fifo stores data on extremely low power!
-  Modify functions to remove lora_update_reg as much as possible create (register centered functions)
+  Removed lora_reg_update from initializations
   Reset fifo to read
   Add voltage and temperature monitoring
 
@@ -291,16 +292,51 @@ static void lora_update_reg(uint8_t reg, uint8_t mask, uint8_t val)
     lora_write_reg(reg, val | (mask & lora_read_reg(reg)));
 }
 
+//RegOpMode (0x01)
 static void lora_set_sleep_mode()
 {
-    lora_update_reg(0x01, 0xF8, 0x00);
+    lora_write_reg(0x01, 0b10001000);
 }
 
-static void lora_set_lora_mode()
+static void lora_set_standby_mode()
 {
-    lora_update_reg(0x01, 0x7F, 0x80);
+    lora_write_reg(0x01, 0b10001001);
 }
 
+static void lora_set_tx_mode()
+{
+    lora_write_reg(0x01, 0b10001011);
+}
+
+static void lora_set_rx_cont_mode()
+{
+    lora_write_reg(0x01, 0b10001101);
+}
+
+static void lora_set_rx_mode()
+{
+    lora_write_reg(0x01, 0b10001110);
+}
+
+//RegOcp (0x0B);
+static void lora_set_ocp_off()
+{
+    lora_write_reg(0x0B, 0b00001011);
+}
+
+//RegModemConfig1 (0x1D)
+static void lora_set_bw78_cr48_implicit()
+{
+    lora_write_reg(0x1D, 0b00001001);
+}
+
+////RegModemConfig2 (0x1E)
+static void lora_set_sf8_nocrc()
+{
+    lora_write_reg(0x1E, 0b10000000);
+}
+
+//RegPayloadLength (0x22)
 static void lora_set_payload_length_1()
 {
     lora_write_reg(0x22, 0x01);
@@ -311,59 +347,10 @@ static void lora_set_payload_length_5()
     lora_write_reg(0x22, 0x05);
 }
 
-static void lora_set_explicit_header()
-{
-    lora_update_reg(0x1D, 0xFE, 0x00);
-}
-
-static void lora_set_implicit_header()
-{
-    lora_update_reg(0x1D, 0xFE, 0x01);
-}
-
-static void lora_set_error_crc_cr_4_8()
-{
-    lora_update_reg(0x1D, 0xF1, 4 << 1);
-}
-
-static void lora_set_bandwidth_62_5()
-{
-    lora_update_reg(0x1D, 0x0F, 6 << 4);
-}
-
-static void lora_set_bandwidth_7_8()
-{
-    lora_update_reg(0x1D, 0x0F, 0 << 4);
-}
-
-static void lora_set_sf_12()
-{
-    lora_update_reg(0x1E, 0x0F, 12 << 4);
-}
-
-static void lora_set_sf_8()
-{
-    lora_update_reg(0x1E, 0x0F, 8 << 4);
-}
-
-static void lora_set_crc_off()
-{
-    lora_update_reg(0x1E, 0xFB, 0x00);
-}
-
-static void lora_set_ocp_off()
-{
-    lora_update_reg(0x0B, 0b11011111, 0x00);
-}
-
 static void lora_set_max_tx_power_20dbm()
 {
-    lora_write_reg(0x4D, 0x87);
-}
-
-static void lora_set_pa_boost_20dbm()
-{
-    lora_write_reg(0x09, 0xF0 | (20 - 2));
+    lora_write_reg(0x4D, 0b10000111);
+    lora_write_reg(0x09, 0b11110010);
 }
 
 static void lora_set_syncword_0x12()
@@ -375,11 +362,6 @@ static void lora_set_preample_len_6()
 {
     lora_write_reg(0x20, 0x00); //MSB
     lora_write_reg(0x21, 0x06); //LSB
-}
-
-static void lora_set_agc_on()
-{
-    lora_write_reg(0x26, 0b100);
 }
 
 static void lora_set_lna_gain_highest()
@@ -402,9 +384,19 @@ static void lora_set_detection_optimize_for_sf_7to12()
     lora_write_reg(0x31, 0xC3);
 }
 
+static void lora_set_detection_optimize_for_sf_6()
+{
+    lora_write_reg(0x31, 0xC5);
+}
+
 static void lora_set_detection_threshold_for_sf_7to12()
 {
     lora_write_reg(0x37, 0x0A);
+}
+
+static void lora_set_detection_threshold_for_sf_6()
+{
+    lora_write_reg(0x37, 0x0C);
 }
 
 static void lora_set_freq_434800000()
@@ -418,14 +410,9 @@ static void lora_set_freq_434800000()
     lora_write_reg(0x08, 0x34);
 }
 
-static void lora_set_low_data_optimize_on()
+static void lora_set_ldoon_agcon()
 {
-    lora_update_reg(0x26, 0xF7, 0x01 << 3);
-}
-
-static void lora_set_standby_mode()
-{
-    lora_update_reg(0x01, 0b11111000, 0b001);
+    lora_write_reg(0x26, 0b00001100);
 }
 
 static void lora_map_rx_to_dio0()
@@ -436,21 +423,6 @@ static void lora_map_rx_to_dio0()
 static void lora_map_tx_to_dio0()
 {
     lora_write_reg(0x40, 1 << 6);
-}
-
-static void lora_set_rx_cont_mode()
-{
-    lora_update_reg(0x01, 0b11111000, 0b101);
-}
-
-static void lora_set_rx_mode()
-{
-    lora_update_reg(0x01, 0b11111000, 0b110);
-}
-
-static void lora_set_tx_mode()
-{
-    lora_update_reg(0x01, 0b11111000, 0b011);
 }
 
 static void lora_reset_irq()
@@ -480,26 +452,20 @@ static void lora_init_common()
         return sys_error();
 
     lora_set_sleep_mode();
-    lora_set_lora_mode();
-    lora_set_implicit_header();
+    lora_set_bw78_cr48_implicit();
     lora_set_payload_length_1(); //needed for implicit header mode
-    lora_set_error_crc_cr_4_8();
-    lora_set_bandwidth_7_8();
-    lora_set_sf_8();
-    lora_set_crc_off();
+    lora_set_sf8_nocrc();
     lora_set_ocp_off();
     lora_set_max_tx_power_20dbm();
-    lora_set_pa_boost_20dbm();
     lora_set_syncword_0x12();
     lora_set_preample_len_6();
-    lora_set_agc_on();
     lora_set_lna_gain_highest();
     lora_reset_tx_base_address();
     lora_reset_rx_base_address();
     lora_set_detection_optimize_for_sf_7to12();
     lora_set_detection_threshold_for_sf_7to12();
     lora_set_freq_434800000();
-    lora_set_low_data_optimize_on();
+    lora_set_ldoon_agcon();
     lora_set_standby_mode();
 }
 
@@ -519,8 +485,14 @@ static void lora_switch_sf()
     uint8_t val = lora_read_reg(0x1E);
     val >>= 4;
     val ++;
-    if(12 < val)
+    if(12 < val) {
         val = 6;
+        lora_set_detection_optimize_for_sf_6();
+        lora_set_detection_threshold_for_sf_6();
+    } else {
+        lora_set_detection_optimize_for_sf_7to12();
+        lora_set_detection_threshold_for_sf_7to12();
+    }
     lora_update_reg(0x1E, 0x0F, val << 4);
     lora_print_reg(0x1E);
 }
