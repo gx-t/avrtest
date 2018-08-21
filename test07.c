@@ -597,19 +597,15 @@ ISR(PCINT0_vect)
 {
     if(!(PINB & LORA_RX_TX_DONE))
         return;
-    uint8_t status = lora_read_reg(0x12);
 
-    do {
-        if(0b1000000 & status) {
-            lora_read_rx_data();
-            break;
-        }
-        else if(0b0001000 & status) {
-            lora_send_tx_data();
-            break;
-        }
-    }while(1);
+    uint8_t status = lora_read_reg(0x12);
     lora_reset_irq();
+
+    if(0b1000000 & status)
+        return lora_read_rx_data();
+
+    if(0b0001000 & status)
+        return lora_send_tx_data();
 }
 
 static void sys_init()
