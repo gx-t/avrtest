@@ -268,7 +268,7 @@ static void p_binary(uint8_t val)
         uart_tx(val & i ? '1' : '0');
         i >>= 1;
     }
-    uart_tx('.');
+    uart_tx(' ');
     while(i) {
         uart_tx(val & i ? '1' : '0');
         i >>= 1;
