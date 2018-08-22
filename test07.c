@@ -285,8 +285,21 @@ static void lora_print_reg(uint8_t reg)
     p_hex_digit(val);
     p_str(" = ");
     p_binary(val);
-    uart_tx('\r');
-    uart_tx('\n');
+    p_str("\r\n");
+}
+
+static void lora_explain_reg0x01()
+{
+    const char* mode_list[] = {
+        "SLEEP", "STDBY", "FSTX", "TX", "FSRX", "RXCONTINUOUS", "RXSINGLE", "CAD"
+    };
+    uint8_t val = lora_read_reg(0x01);
+    p_str("Mode: ");
+    p_str(mode_list[(val & 0b111)]);
+    p_str("\r\n");
+    p_str("LongRangeMode: ");
+    p_str(val & 0b10000000 ? "LoRa" : "FSK/OOK");
+    p_str("\r\n");
 }
 
 static void lora_update_reg(uint8_t reg, uint8_t mask, uint8_t val)
@@ -521,8 +534,8 @@ static void lora_print_settings()
     lora_print_reg(0x08);
     lora_print_reg(0x1D);
     lora_print_reg(0x1E);
-    uart_tx('\r');
-    uart_tx('\n');
+    p_str("\r\n");
+    lora_explain_reg0x01();
 }
 
 static void show_usage()
