@@ -17,7 +17,7 @@
 
 /*TODO:
   Check power registers values ... fixed
-  Display RSSI and SNR
+  Display RSSI and SNR ... added lora_print_register call
   Update 0x31 and 0x37 on SF change ... OK
   Try to write FIFO once and reset pos. for send ... done, write data to any offset, send reads from 0x00. Fifo stores data on extremely low power!
   Removed lora_reg_update from initializations
