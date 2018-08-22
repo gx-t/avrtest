@@ -320,10 +320,63 @@ static void lora_set_rx_mode()
     lora_write_reg(0x01, 0b10001110);
 }
 
+static void lora_set_freq_434800000()
+{
+
+    //Frf = Fosc * reg_value / 2 ^ 19
+    //p. 109
+
+    lora_write_reg(0x06, 0x6C);
+    lora_write_reg(0x07, 0xB3);
+    lora_write_reg(0x08, 0x34);
+}
+
 //RegOcp (0x0B);
 static void lora_set_ocp_off()
 {
     lora_write_reg(0x0B, 0b00001011);
+}
+
+//RegLna
+static void lora_set_lna_gain_highest()
+{
+    lora_write_reg(0x0C, 0b100000);
+}
+
+//RegFifoTxBaseAddr
+static void lora_reset_tx_base_address()
+{
+    lora_write_reg(0x0E, 0x00);
+}
+
+//RegFifoAddrPtr
+static void lora_set_fifo_buffer_address(uint8_t address)
+{
+    lora_write_reg(0x0D, address);
+}
+
+//RegFifoRxBaseAddr
+static void lora_reset_rx_base_address()
+{
+    lora_write_reg(0x0F, 0x00);
+}
+
+//RegFifoRxCurrentAddr
+static uint8_t lora_get_rx_data_address()
+{
+    return lora_read_reg(0x10);
+}
+
+//RegIrqFlags
+static void lora_reset_irq()
+{
+    lora_write_reg(0x12, 0xff);
+}
+
+//RegRxNbBytes
+static uint8_t lora_get_rx_data_len()
+{
+    return lora_read_reg(0x13);
 }
 
 //RegModemConfig1 (0x1D)
@@ -332,10 +385,17 @@ static void lora_set_bw78_cr48_implicit()
     lora_write_reg(0x1D, 0b00001001);
 }
 
-////RegModemConfig2 (0x1E)
+//RegModemConfig2 (0x1E)
 static void lora_set_sf8_nocrc()
 {
     lora_write_reg(0x1E, 0b10000000);
+}
+
+//RegPreambleMsb, RegPreambleLsb
+static void lora_set_preample_len_6()
+{
+    lora_write_reg(0x20, 0x00); //MSB
+    lora_write_reg(0x21, 0x06); //LSB
 }
 
 //RegPayloadLength (0x22)
@@ -349,38 +409,13 @@ static void lora_set_payload_length_5()
     lora_write_reg(0x22, 0x05);
 }
 
-static void lora_set_max_tx_power_20dbm()
+//RegModemConfig3
+static void lora_set_ldoon_agcon()
 {
-    lora_write_reg(0x4D, 0b10000111);
-    lora_write_reg(0x09, 0b11111111);
+    lora_write_reg(0x26, 0b00001100);
 }
 
-static void lora_set_syncword_0x12()
-{
-    lora_write_reg(0x39, 0x12);
-}
-
-static void lora_set_preample_len_6()
-{
-    lora_write_reg(0x20, 0x00); //MSB
-    lora_write_reg(0x21, 0x06); //LSB
-}
-
-static void lora_set_lna_gain_highest()
-{
-    lora_write_reg(0x0C, 0b100000);
-}
-
-static void lora_reset_tx_base_address()
-{
-    lora_write_reg(0x0E, 0x00);
-}
-
-static void lora_reset_rx_base_address()
-{
-    lora_write_reg(0x0F, 0x00);
-}
-
+//RegDetectOptimize
 static void lora_set_detection_optimize_for_sf_7to12()
 {
     lora_write_reg(0x31, 0xC3);
@@ -391,6 +426,7 @@ static void lora_set_detection_optimize_for_sf_6()
     lora_write_reg(0x31, 0xC5);
 }
 
+//RegDetectionThreshold
 static void lora_set_detection_threshold_for_sf_7to12()
 {
     lora_write_reg(0x37, 0x0A);
@@ -401,22 +437,13 @@ static void lora_set_detection_threshold_for_sf_6()
     lora_write_reg(0x37, 0x0C);
 }
 
-static void lora_set_freq_434800000()
+//RegSyncWord
+static void lora_set_syncword_0x12()
 {
-
-    //Frf = Fosc * reg_value / 2 ^ 19
-    //p. 109
-
-    lora_write_reg(0x06, 0x6C);
-    lora_write_reg(0x07, 0xB3);
-    lora_write_reg(0x08, 0x34);
+    lora_write_reg(0x39, 0x12);
 }
 
-static void lora_set_ldoon_agcon()
-{
-    lora_write_reg(0x26, 0b00001100);
-}
-
+//RegDioMapping1
 static void lora_map_rx_to_dio0()
 {
     lora_write_reg(0x40, 0 << 6);
@@ -427,24 +454,11 @@ static void lora_map_tx_to_dio0()
     lora_write_reg(0x40, 1 << 6);
 }
 
-static void lora_reset_irq()
+//RegPaDac
+static void lora_set_max_tx_power_20dbm()
 {
-    lora_write_reg(0x12, 0xff);
-}
-
-static uint8_t lora_get_rx_data_len()
-{
-    return lora_read_reg(0x13);
-}
-
-static uint8_t lora_get_rx_data_address()
-{
-    return lora_read_reg(0x10);
-}
-
-static void lora_set_fifo_buffer_address(uint8_t address)
-{
-    lora_write_reg(0x0D, address);
+    lora_write_reg(0x4D, 0b10000111);
+    lora_write_reg(0x09, 0b11111111);
 }
 
 static void lora_init_common()
