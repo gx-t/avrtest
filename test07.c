@@ -16,6 +16,7 @@
 #define LED_PIN         (1 << PC0)
 
 /*TODO:
+  Check correct entering and exiting sleep mode
   Check power registers values ... fixed
   Display RSSI and SNR ... added lora_print_register call
   Update 0x31 and 0x37 on SF change ... OK
@@ -530,9 +531,10 @@ static void show_usage()
     p_line("Usage:");
     p_line("i - Current settings");
     p_line("r - RX mode (default)");
+    p_line("s - SLEEP mode");
     p_line("t - TX mode");
     p_line("w - Switch BW");
-    p_line("s - Switch SF");
+    p_line("f - Switch SF");
     p_line("q - Restart");
 }
 
@@ -561,6 +563,12 @@ static void lora_init_rx()
     p_line("RX mode.");
 }
 
+static void lora_init_sleep()
+{
+    lora_set_sleep_mode();
+    p_line("SLEEP mode.");
+}
+
 static void lora_init_tx()
 {
     lora_map_tx_to_dio0();
@@ -586,11 +594,13 @@ ISR(USART_RX_vect)
         return lora_print_settings();
     if('r' == ch)
         return lora_init_rx();
+    if('s' == ch)
+        return lora_init_sleep();
     if('t' == ch)
         return lora_init_tx();
     if('w' == ch)
         return lora_switch_bw();
-    if('s' == ch)
+    if('f' == ch)
         return lora_switch_sf();
     if('q' == ch)
         return lora_restart();
