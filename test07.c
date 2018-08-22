@@ -16,7 +16,8 @@
 #define LED_PIN         (1 << PC0)
 
 /*TODO:
-  Check correct entering and exiting sleep mode
+  Use RTC to delay TX and for LED
+  Check correct entering and exiting sleep mode ... checked, fixed
   Check power registers values ... fixed
   Display RSSI and SNR ... added lora_print_register call
   Update 0x31 and 0x37 on SF change ... OK
@@ -279,9 +280,8 @@ static void p_binary(uint8_t val)
 static void lora_print_reg(uint8_t reg)
 {
     uint8_t val = lora_read_reg(reg);
-    p_str("REG ");
     p_hex_digit(reg);
-    p_str(" = ");
+    p_str(": ");
     p_hex_digit(val);
     p_str(" = ");
     p_binary(val);
@@ -529,7 +529,7 @@ static void lora_print_settings()
 static void show_usage()
 {
     p_line("Usage:");
-    p_line("i - Current settings");
+    p_line("i - Display registers");
     p_line("r - RX mode (default)");
     p_line("s - SLEEP mode");
     p_line("t - TX mode");
@@ -557,22 +557,24 @@ static void lora_send_tx_data()
 
 static void lora_init_rx()
 {
+    p_line("RX");
+    lora_init_common();
     lora_map_rx_to_dio0();
     lora_set_fifo_buffer_address(0x00);
     lora_set_rx_cont_mode();
-    p_line("RX mode.");
 }
 
 static void lora_init_sleep()
 {
     lora_set_sleep_mode();
-    p_line("SLEEP mode.");
+    p_line("SLEEP");
 }
 
 static void lora_init_tx()
 {
+    p_line("TX");
+    lora_init_common();
     lora_map_tx_to_dio0();
-    p_line("TX mode.");
     lora_set_fifo_buffer_address(0x00);
     lora_write_reg(0x00, 'L');
     lora_send_tx_data();
@@ -580,7 +582,7 @@ static void lora_init_tx()
 
 static void lora_restart()
 {
-    lora_init_common();
+    p_line("RESTART");
     lora_init_rx();
     lora_print_settings();
 }
@@ -647,7 +649,6 @@ static void sys_init()
 int main(void)
 {
     sys_init();
-    lora_init_common();
     lora_init_rx();
     lora_print_settings();
     while(1) {
