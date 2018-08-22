@@ -196,8 +196,7 @@ static void p_str(const char* str)
 static void p_line(const char* pp)
 {
     p_str(pp);
-    uart_tx('\r');
-    uart_tx('\n');
+    p_str("\r\n");
 }
 
 static void p_name_value(const char* name, const char* val, const char* units)
@@ -285,20 +284,6 @@ static void lora_print_reg(uint8_t reg)
     p_hex_digit(val);
     p_str(" = ");
     p_binary(val);
-    p_str("\r\n");
-}
-
-static void lora_explain_reg0x01()
-{
-    const char* mode_list[] = {
-        "SLEEP", "STDBY", "FSTX", "TX", "FSRX", "RXCONTINUOUS", "RXSINGLE", "CAD"
-    };
-    uint8_t val = lora_read_reg(0x01);
-    p_str("Mode: ");
-    p_str(mode_list[(val & 0b111)]);
-    p_str("\r\n");
-    p_str("LongRangeMode: ");
-    p_str(val & 0b10000000 ? "LoRa" : "FSK/OOK");
     p_str("\r\n");
 }
 
@@ -481,20 +466,20 @@ static void lora_init_common()
         return sys_error();
 
     lora_set_sleep_mode();
-    lora_set_bw78_cr48_implicit();
-    lora_set_payload_length_1(); //needed for implicit header mode
-    lora_set_sf8_nocrc();
+    lora_set_freq_434800000();
     lora_set_ocp_off();
-    lora_set_max_tx_power_20dbm();
-    lora_set_syncword_0x12();
-    lora_set_preample_len_6();
     lora_set_lna_gain_highest();
     lora_reset_tx_base_address();
     lora_reset_rx_base_address();
+    lora_set_bw78_cr48_implicit();
+    lora_set_sf8_nocrc();
+    lora_set_preample_len_6();
+    lora_set_payload_length_1();
+    lora_set_ldoon_agcon();
     lora_set_detection_optimize_for_sf_7to12();
     lora_set_detection_threshold_for_sf_7to12();
-    lora_set_freq_434800000();
-    lora_set_ldoon_agcon();
+    lora_set_syncword_0x12();
+    lora_set_max_tx_power_20dbm();
     lora_set_standby_mode();
 }
 
@@ -532,10 +517,12 @@ static void lora_print_settings()
     lora_print_reg(0x06);
     lora_print_reg(0x07);
     lora_print_reg(0x08);
+    lora_print_reg(0x19);
+    lora_print_reg(0x1A);
+    lora_print_reg(0x1B);
     lora_print_reg(0x1D);
     lora_print_reg(0x1E);
     p_str("\r\n");
-    lora_explain_reg0x01();
 }
 
 static void show_usage()
