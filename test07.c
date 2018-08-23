@@ -17,6 +17,22 @@
 
 /*TODO:
   Use RTC to delay TX and for LED
+  Save/load RX/TX, BW, SF
+
+  #include <avr/eeprom.h>
+  double EEMEM EEVar;
+  double a;
+
+  void WriteDoubleToEeprom(double x){
+    eeprom_write_block((const void*)&x, (void*)&EEVar, sizeof(double));
+  }
+
+  double ReadDoubleFromEeprom(void){
+    double temp;
+    eeprom_read_block((void*)&temp, (const void*)&EEVar, sizeof(double));
+    return(temp);
+  }
+
   Check correct entering and exiting sleep mode ... checked, fixed
   Check power registers values ... fixed
   Display RSSI and SNR ... added lora_print_register call
