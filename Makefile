@@ -46,7 +46,7 @@ all:
 	avr-gcc -mmcu=atmega328p -Wno-unused-function -Wall -Werror -Os -s test07.c -o test07.elf
 	avr-objcopy -j .text -j .data -O ihex test07.elf test07.hex
 	rm *.elf
-	avrdude -c USBASP -p m328p -U flash:w:test07.hex -U lfuse:w:0xc2:m 
+	avrdude -c USBASP -p m328p -U flash:w:test07.hex -U lfuse:w:0xc2:m -U hfuse:w:0xd9:m 
 
 
 client_rel:
