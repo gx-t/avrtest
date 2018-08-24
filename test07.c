@@ -132,7 +132,7 @@ static void led_off()
 static void rtc_init()
 {  
     TCCR2A = 0x00;  //overflow
-    TCCR2B = 0x03;  //0.25 s
+    TCCR2B = 0x02;  //0.125 s
     TIMSK2 = 0x01;  //enable timer2A overflow interrupt
     ASSR  = 0x20;   //enable asynchronous mode
 }
