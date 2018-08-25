@@ -542,7 +542,6 @@ static void show_usage()
     p_line("m - Next mode (RX,TX,SLEEP)");
     p_line("w - Next BW");
     p_line("s - Next SF");
-    p_line("q - Restart");
 }
 
 static void lora_read_rx_data()
@@ -585,13 +584,6 @@ static void lora_init_tx()
     lora_send_tx_data();
 }
 
-static void lora_restart()
-{
-    p_line("RESTART");
-    lora_init_rx();
-    lora_print_settings();
-}
-
 static void f_uart(uint8_t* state)
 {
     if(!(UCSR0A & (1 << RXC0)))
@@ -607,8 +599,6 @@ static void f_uart(uint8_t* state)
         return lora_switch_bw();
     if('s' == ch)
         return lora_switch_sf();
-    if('q' == ch)
-        return lora_restart();
     show_usage();
 }
 
