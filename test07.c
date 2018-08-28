@@ -16,6 +16,7 @@
 #define LED_PIN         (1 << PC0)
 
 /*TODO:
+  Try blob, compare size
   Add voltage monitoring
     https://arduino.stackexchange.com/questions/23526/measure-different-vcc-using-1-1v-bandgap
     https://arduino.stackexchange.com/questions/16352/measure-vcc-using-1-1v-bandgap
@@ -46,6 +47,9 @@
 
 /*
    JS calculations:
+Designer’s Guide. AN1200.13
+https://www.semtech.com/uploads/documents/LoraDesignGuide_STD.pdf
+
    function calc_t_sym(sf, bw)
    {
    return 2 ** sf / bw;
@@ -91,9 +95,6 @@ Interrupts: RTC (timer 2 overflow), UART RX, pin change PB1
 
 SX1276/77/78/79 datasheet:
 https://www.semtech.com/uploads/documents/DS_SX1276-7-8-9_W_APP_V5.pdf
-
-Designer’s Guide. AN1200.13
-https://www.semtech.com/uploads/documents/LoraDesignGuide_STD.pdf
 
 Decoding LoRa - modulation, SF, CR, BW:
 https://revspace.nl/DecodingLora
