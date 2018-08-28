@@ -16,8 +16,13 @@
 #define LED_PIN         (1 << PC0)
 
 /*TODO:
-  Use RTC to delay TX and for LED
-  Save/load RX/TX, BW, SF
+  Add voltage monitoring
+    https://arduino.stackexchange.com/questions/23526/measure-different-vcc-using-1-1v-bandgap
+    https://arduino.stackexchange.com/questions/16352/measure-vcc-using-1-1v-bandgap
+
+  Add bmp180 support
+
+  Use RTC to delay TX and for LED ... OK
 
   #include <avr/eeprom.h>
   double EEMEM EEVar;
@@ -33,14 +38,8 @@
     return(temp);
   }
 
-  Check correct entering and exiting sleep mode ... checked, fixed
-  Check power registers values ... fixed
   Display RSSI and SNR ... added lora_print_register call
   Update 0x31 and 0x37 on SF change ... OK
-  Try to write FIFO once and reset pos. for send ... done, write data to any offset, send reads from 0x00. Fifo stores data on extremely low power!
-  Removed lora_reg_update from initializations
-  Reset fifo to read
-  Add voltage and temperature monitoring
 
   Command send-receive mode
  */
