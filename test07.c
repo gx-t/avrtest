@@ -17,14 +17,11 @@
 
 /*TODO:
   Form 32 bytes package (all needed for monitoring)
+  Add register monitoring
   Add voltage monitoring
     https://arduino.stackexchange.com/questions/23526/measure-different-vcc-using-1-1v-bandgap
     https://arduino.stackexchange.com/questions/16352/measure-vcc-using-1-1v-bandgap
-
-  Try blob, compare size
-  Add bmp180 support
-
-  Use RTC to delay TX and for LED ... OK
+  Add bmp180 monitoring
 
   #include <avr/eeprom.h>
   double EEMEM EEVar;
