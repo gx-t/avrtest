@@ -130,7 +130,7 @@ static void led_off()
 static void rtc_init()
 {  
     TCCR2A = 0x00;  //overflow
-    TCCR2B = 0x02;  //0.125 s
+    TCCR2B = 0x03;  //0.25 s
     TIMSK2 = 0x01;  //enable timer2A overflow interrupt
     ASSR  = 0x20;   //enable asynchronous mode
 }
@@ -415,6 +415,11 @@ static void lora_set_payload_length_5()
     lora_write_reg(0x22, 0x05);
 }
 
+static void lora_set_payload_length_32()
+{
+    lora_write_reg(0x22, 0x20);
+}
+
 //RegModemConfig3
 static void lora_set_ldoon_agcon()
 {
@@ -482,7 +487,7 @@ static void lora_init_common()
     lora_set_bw78_cr48_implicit();
     lora_set_sf8_nocrc();
     lora_set_preample_len_6();
-    lora_set_payload_length_1();
+    lora_set_payload_length_32();
     lora_set_ldoon_agcon();
     lora_set_detection_optimize_for_sf_7to12();
     lora_set_detection_threshold_for_sf_7to12();
@@ -542,19 +547,60 @@ static void show_usage()
     p_line("s - Next SF");
 }
 
-static void lora_read_rx_data()
+static void lora_read_fifo_32_bytes(uint8_t buff[32])
 {
+    uint8_t* pp = buff;
+    uint8_t count = 32;
     lora_set_fifo_buffer_address(lora_get_rx_data_address());
     spi_chip_enable();
-    SPDR = 0x00;
+    SPDR = 0;
     spi_wait_write();
-    uint8_t bt = SPDR;
+    while(count--) {
+        SPDR = 0;
+        spi_wait_write();
+        *pp++ = SPDR;
+    }
     spi_chip_disable();
-    'L' == bt ? led_on() : led_off();
+}
+
+static void lora_read_rx_data()
+{
+    uint8_t buff[32];
+    uint8_t* pp = buff;
+    uint8_t count = 32;
+    lora_read_fifo_32_bytes(buff);
+    while(count && --count == *pp++);
+    count ? led_off() : led_on();
+}
+
+static void lora_write_fifo_32_bytes(const uint8_t data[32])
+{
+    const uint8_t* pp = data;
+    uint8_t count = 32;
+    spi_chip_enable();
+    SPDR = 0x80;
+    spi_wait_write();
+    while(count--) {
+        SPDR = *pp++;
+        spi_wait_write();
+    }
+    spi_chip_disable();
+}
+
+static void f_prepare_send_data()
+{
+    uint8_t data[32];
+    uint8_t* pp = data;
+    uint8_t count = 32;
+    while(count--) {
+        *pp++ = count;
+    }
+    lora_write_fifo_32_bytes(data);
 }
 
 static void lora_send_tx_data()
 {
+    f_prepare_send_data();
     lora_set_tx_mode();
     led_on();
 }
@@ -577,8 +623,6 @@ static void lora_init_tx()
 {
     p_line("TX");
     lora_map_tx_to_dio0();
-    lora_set_fifo_buffer_address(0x00);
-    lora_write_reg(0x00, 'L');
     lora_send_tx_data();
 }
 
