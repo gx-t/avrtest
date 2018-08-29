@@ -15,8 +15,14 @@
 
 #define LED_PIN         (1 << PC0)
 
+struct {
+    uint8_t led_status : 1;
+    uint8_t tx_delay : 3;
+    uint8_t padding : 4;
+} static g_flags = {1, 6, 0};
+
 /*TODO:
-  Form 32 bytes package (all needed for monitoring)
+  Form 32 bytes package (all needed for monitoring) ... OK
   Add register monitoring
   Add voltage monitoring
     https://arduino.stackexchange.com/questions/23526/measure-different-vcc-using-1-1v-bandgap
@@ -117,6 +123,9 @@ static void led_init()
 
 static void led_on()
 {
+    if(!g_flags.led_status)
+        return;
+
     PORTC |= LED_PIN;
 }
 
@@ -231,12 +240,12 @@ static void sys_error()
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static void lora_reset()
+static void lora_reset_pin()
 {
     PORTB &= ~LORA_RST;
     _delay_us(100);
     PORTB |= LORA_RST;
-    _delay_ms(100);
+    _delay_ms(10);
 }
 
 static uint8_t lora_read_reg(uint8_t reg)
@@ -474,7 +483,7 @@ static void lora_set_max_tx_power_20dbm()
 
 static void lora_init_common()
 {
-    lora_reset();
+    lora_reset_pin();
     if(0x12 != lora_read_reg(0x42))
         return sys_error();
 
@@ -524,6 +533,19 @@ static void lora_switch_sf()
     lora_print_reg(0x1E);
 }
 
+static void print_led_status()
+{
+    p_str("LED status: ");
+    p_line(g_flags.led_status ? "enabled" : "disabled");
+}
+
+static void print_tx_delay()
+{
+    p_str("TX delay: ");
+    p_hex_digit(g_flags.tx_delay);
+    p_line("");
+}
+
 static void lora_print_settings()
 {
     lora_print_reg(0x01);
@@ -535,7 +557,8 @@ static void lora_print_settings()
     lora_print_reg(0x1B);
     lora_print_reg(0x1D);
     lora_print_reg(0x1E);
-    p_str("\r\n");
+    print_led_status();
+    print_tx_delay();
 }
 
 static void show_usage()
@@ -545,6 +568,8 @@ static void show_usage()
     p_line("m - Next mode (RX,TX,SLEEP)");
     p_line("w - Next BW");
     p_line("s - Next SF");
+    p_line("l - LED enable/disable");
+    p_line("t - TX delay 0 - 7 log. units");
 }
 
 static void lora_read_fifo_32_bytes(uint8_t buff[32])
@@ -626,6 +651,18 @@ static void lora_init_tx()
     lora_send_tx_data();
 }
 
+static void led_toggle_status()
+{
+    g_flags.led_status = !g_flags.led_status;
+    print_led_status();
+}
+
+static void switch_tx_delay()
+{
+    g_flags.tx_delay ++;
+    print_tx_delay();
+}
+
 static void f_uart(uint8_t* state)
 {
     if(!(UCSR0A & (1 << RXC0)))
@@ -641,6 +678,10 @@ static void f_uart(uint8_t* state)
         return lora_switch_bw();
     if('s' == ch)
         return lora_switch_sf();
+    if('l' == ch)
+        return led_toggle_status();
+    if('t' == ch)
+        return switch_tx_delay();
     show_usage();
 }
 
@@ -673,7 +714,7 @@ static void f_tx_lora(uint8_t* count)
         return;
     lora_reset_irq();
     led_off();
-    *count = 128;
+    *count = (1 << g_flags.tx_delay);
 }
 
 static void f_tx_rtc(uint8_t* count)
