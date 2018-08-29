@@ -22,7 +22,6 @@ struct {
 } static g_flags = {1, 6, 0};
 
 /*TODO:
-  Form 32 bytes package (all needed for monitoring) ... OK
   Add register monitoring
   Add voltage monitoring
     https://arduino.stackexchange.com/questions/23526/measure-different-vcc-using-1-1v-bandgap
