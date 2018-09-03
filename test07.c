@@ -21,6 +21,31 @@ struct {
     uint8_t padding : 4;
 } static g_flags = {1, 6, 0};
 
+/*
+
+static uint8_t lora_init_blob[] = {
+    0x00, 0b10001000 //Sleep Mode
+    , 0x06, 0x6C //MSB 434800000 Hz
+    , 0x07, 0xB3 //Mid
+    , 0x08, 0x34 //LSB
+    , 0x0B, 0b00001011 //OCP off
+    , 0x0C, 0b100000 //gain - highest
+    , 0x0E, 0x00 //TX base address
+    , 0x0F, 0x00 //RX base address
+    , 0x1D, 0b00001001 //BW = 7.8 Khz, CR=4/8, implicit header
+    , 0x1E, 0b10000000 //SF = 8, No CRC
+    , 0x20, 0x00 //Preamble len MSB
+    , 0x21, 0x06 //Preamble len LSB
+    , 0x22, 0x20 //Payload length = 32
+    , 0x26, 0b00001100 //Low Data Rate Optimize on, AGC on
+    , 0x31, 0xC3 //Data Detection Optimize for SF = 7..12
+    , 0x37, 0x0A //Detection Threshold for SF = 7..12
+    , 0x39, 0x12 //Synch Word = 0x12
+    , 0x4D, 0b10000111 //PA BOOST on
+    , 0x09, 0b11111111 //Max output power
+    , 0x01, 0b10001001 //Standby Mode
+};*/
+
 /*TODO:
   Add register monitoring
   Add voltage monitoring
@@ -47,6 +72,13 @@ struct {
 
   Command send-receive mode
  */
+
+/*
+Frequency JS calculation
+F = Fr * (2 << 18) / 32e6;
+
+Fr = 32e6 * F / (2 << 18);
+*/
 
 /*
    JS calculations:
