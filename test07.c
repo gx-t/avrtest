@@ -431,10 +431,20 @@ static void lora_set_bw78_cr48_implicit()
     lora_write_reg(0x1D, 0b00001001);
 }
 
+static void lora_set_bw78_cr45_implicit()
+{
+    lora_write_reg(0x1D, 0b00000011);
+}
+
 //RegModemConfig2 (0x1E)
 static void lora_set_sf8_nocrc()
 {
     lora_write_reg(0x1E, 0b10000000);
+}
+
+static void lora_set_sf8_crc()
+{
+    lora_write_reg(0x1E, 0b10000100);
 }
 
 //RegPreambleMsb, RegPreambleLsb
@@ -525,7 +535,7 @@ static void lora_init_common()
     lora_reset_tx_base_address();
     lora_reset_rx_base_address();
     lora_set_bw78_cr48_implicit();
-    lora_set_sf8_nocrc();
+    lora_set_sf8_crc();
     lora_set_preample_len_6();
     lora_set_payload_length_1();
     lora_set_ldoon_agcon();

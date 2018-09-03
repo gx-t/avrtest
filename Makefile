@@ -48,6 +48,12 @@ all:
 	rm *.elf
 	avrdude -c USBASP -p m328p -U flash:w:test07.hex -U lfuse:w:0xc2:m -U hfuse:w:0xd9:m 
 
+08:
+	avr-gcc -mmcu=atmega328p -Wno-unused-function -Wall -Werror -Os -s test08.c -o test08.elf
+	avr-objcopy -j .text -j .data -O ihex test08.elf test08.hex
+	rm *.elf
+	avrdude -c USBASP -p m328p -U flash:w:test08.hex -U lfuse:w:0xc2:m -U hfuse:w:0xd9:m 
+
 
 client_rel:
 	gcc -O2 -Werror -s client.c -o client
