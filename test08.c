@@ -280,7 +280,7 @@ static void lora_reset_irq()
     lora_write_reg(0x12, 0xff);
 }
 
-static void lora_init_common()
+static void lora_init_tx()
 {
     lora_reset_pin();
     static const uint8_t lora_tx_init_blob[] = {
@@ -333,7 +333,7 @@ static uint8_t lora_check_tx_done()
 
 static void f_tx()
 {
-    lora_init_common();
+    lora_init_tx();
     p_line("TX");
 //    lora_print_settings();
     while(!(PINB & LORA_RX_TX_DONE) || !lora_check_tx_done()) {
