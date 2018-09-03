@@ -527,7 +527,7 @@ static void lora_init_common()
     lora_set_bw78_cr48_implicit();
     lora_set_sf8_nocrc();
     lora_set_preample_len_6();
-    lora_set_payload_length_32();
+    lora_set_payload_length_1();
     lora_set_ldoon_agcon();
     lora_set_detection_optimize_for_sf_7to12();
     lora_set_detection_threshold_for_sf_7to12();
@@ -603,6 +603,14 @@ static void show_usage()
     p_line("t - TX delay 0 - 7 log. units");
 }
 
+static void lora_init_rx()
+{
+    p_line("RX");
+    lora_map_rx_to_dio0();
+    lora_set_fifo_buffer_address(0x00);
+    lora_set_rx_cont_mode();
+}
+
 static void lora_read_fifo_32_bytes(uint8_t buff[32])
 {
     uint8_t* pp = buff;
@@ -621,12 +629,8 @@ static void lora_read_fifo_32_bytes(uint8_t buff[32])
 
 static void lora_read_rx_data()
 {
-    uint8_t buff[32];
-    uint8_t* pp = buff;
-    uint8_t count = 32;
-    lora_read_fifo_32_bytes(buff);
-    while(count && --count == *pp++);
-    count ? led_off() : led_on();
+    lora_set_fifo_buffer_address(lora_get_rx_data_address());
+    'L' == lora_read_reg(0x00) ? led_on() : led_off();
 }
 
 static void lora_write_fifo_32_bytes(const uint8_t data[32])
@@ -645,13 +649,7 @@ static void lora_write_fifo_32_bytes(const uint8_t data[32])
 
 static void f_prepare_send_data()
 {
-    uint8_t data[32];
-    uint8_t* pp = data;
-    uint8_t count = 32;
-    while(count--) {
-        *pp++ = count;
-    }
-    lora_write_fifo_32_bytes(data);
+    lora_write_reg(0x00, 'L');
 }
 
 static void lora_send_tx_data()
@@ -659,14 +657,6 @@ static void lora_send_tx_data()
     f_prepare_send_data();
     lora_set_tx_mode();
     led_on();
-}
-
-static void lora_init_rx()
-{
-    p_line("RX");
-    lora_map_rx_to_dio0();
-    lora_set_fifo_buffer_address(0x00);
-    lora_set_rx_cont_mode();
 }
 
 static void lora_init_sleep()
