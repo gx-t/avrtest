@@ -13,8 +13,10 @@
 #define SPI_MISO        (1 << PB4)
 #define SPI_SCK         (1 << PB5)
 
+#define LED_PIN         (1 << PC0)
+
 /*
-   ATMEGA328 + LoRa RA01 transmit mode
+   ATMEGA328 + LoRa RA01 receive mode
    ATMEGA 328P:
 RTC: 9-10 32768 Hz QZ 
 9 -- 32768HZ -- 10
@@ -35,17 +37,22 @@ https://www.semtech.com/uploads/documents/DS_SX1276-7-8-9_W_APP_V5.pdf
 
 Decoding LoRa - modulation, SF, CR, BW:
 https://revspace.nl/DecodingLora
-
-RX = "receive"
-TX = "transmit"
-SF = "spreading factor"
-BW = "bandwidth"
-ECR = "error coding rate"
-AGC = "automatic gain control"
-OCP = "overcurrent protection"
-PA = "power amplifier"
-PCINT = "pin change interrupt"
  */
+
+static void led_init()
+{
+    DDRC |= LED_PIN;
+}
+
+static void led_on()
+{
+    PORTC |= LED_PIN;
+}
+
+static void led_off()
+{
+    PORTC &= ~LED_PIN;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -205,17 +212,15 @@ static void lora_set_sleep_mode()
     lora_write_reg(0x01, 0b10001000);
 }
 
-static void lora_init_tx()
+static void lora_init_rx()
 {
     lora_reset_pin();
-    static const uint8_t lora_tx_init_blob[] = {
+    static const uint8_t lora_rx_init_blob[] = {
         0x01, 0b10001000 //Sleep Mode
             , 0x06, 0x6C //MSB 433920000 Hz
             , 0x07, 0x7A //Mid
             , 0x08, 0xE1 //LSB
-            , 0x0B, 0b00001011 //OCP off
-            , 0x0E, 0x00 //TX base address
-            , 0x00, 'L' //Data
+            , 0x0E, 0x00 //RX base address
             , 0x1D, 0b00100011 //BW = 15.2 Khz, CR=4/5, implicit header
             , 0x1E, 0b11000100 //SF = 12, CRC
             , 0x20, 0x00 //Preamble len MSB
@@ -225,13 +230,11 @@ static void lora_init_tx()
             , 0x31, 0xC3 //Data Detection Optimize for SF = 7..12
             , 0x37, 0x0A //Detection Threshold for SF = 7..12
             , 0x39, 0x12 //Synch Word = 0x12
-            , 0x40, 0b01000000 //Map TX Done to DIO0
-            , 0x4D, 0b10000111 //PA BOOST on
-            , 0x09, 0b11111111 //Max output power
-            , 0x01, 0b10001011 //TX mode
+            , 0x40, 0b00000000 //Map RX Done to DIO0
+            , 0x01, 0b10001101 //RX Cont mode
             , 0xFF, 0xFF //end
     };
-    const uint8_t* pp = lora_tx_init_blob;
+    const uint8_t* pp = lora_rx_init_blob;
     while(0xFF != *pp) {
         lora_write_reg(pp[0], pp[1]);
         pp+=2;
@@ -251,30 +254,35 @@ static void lora_print_settings()
     lora_print_reg(0x1E);
 }
 
-static uint8_t lora_check_tx_done()
+static uint8_t lora_check_rx_done()
 {
-    return !!(0b0001000 & lora_read_reg(0x12));
+    return !!(0b1000000 & lora_read_reg(0x12));
 }
 
-static void f_tx()
+static void lora_set_fifo_buffer_address(uint8_t address)
 {
-    lora_init_tx();
-    p_line("TX");
-//    lora_print_settings();
-    while(!(PINB & LORA_RX_TX_DONE) || !lora_check_tx_done()) {
-        p_line("TX Check");
+    lora_write_reg(0x0D, address);
+}
+
+static void lora_read_rx_data()
+{
+    uint8_t data = lora_read_reg(0x00);
+    'L' == data ? led_on() : led_off();
+}
+
+static void f_rx()
+{
+    lora_init_rx();
+    lora_print_settings();
+    while(!(PINB & LORA_RX_TX_DONE) || !lora_check_rx_done()) {
+        p_line("RX Check");
         sleep_cpu();
     }
-    p_line("TX Done");
+    p_line("RX Done");
+    lora_read_rx_data();
     lora_set_sleep_mode();
-}
-
-static void f_pause()
-{
-    uint16_t count = 1;
-    while(count --) {
-        sleep_cpu();
-    }
+    sleep_cpu();
+    led_off();
 }
 
 static void sys_init()
@@ -284,6 +292,7 @@ static void sys_init()
     sleep_enable();
     uart_init();
     spi_init();
+    led_init();
     rtc_init();
     sei();
 }
@@ -292,8 +301,7 @@ int main(void)
 {
     sys_init();
     while(1) {
-        f_tx();
-        f_pause();
+        f_rx();
     } 
     return 0;
 }

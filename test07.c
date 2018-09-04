@@ -377,6 +377,13 @@ static void lora_set_freq_434800000()
     lora_write_reg(0x08, 0x34);
 }
 
+static void lora_set_freq_433920000()
+{
+    lora_write_reg(0x06, 0x6C);
+    lora_write_reg(0x07, 0x7A);
+    lora_write_reg(0x08, 0xE1);
+}
+
 //RegOcp (0x0B);
 static void lora_set_ocp_off()
 {
@@ -529,12 +536,12 @@ static void lora_init_common()
         return sys_error();
 
     lora_set_sleep_mode();
-    lora_set_freq_434800000();
+    lora_set_freq_433920000();
     lora_set_ocp_off();
     lora_set_lna_gain_highest();
     lora_reset_tx_base_address();
     lora_reset_rx_base_address();
-    lora_set_bw78_cr48_implicit();
+    lora_set_bw78_cr45_implicit();
     lora_set_sf8_crc();
     lora_set_preample_len_6();
     lora_set_payload_length_1();
