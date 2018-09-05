@@ -14,6 +14,10 @@
 #define SPI_SCK         (1 << PB5)
 
 /*
+BMP180:
+https://cdn-shop.adafruit.com/datasheets/BST-BMP180-DS000-09.pdf
+https://github.com/ControlEverythingCommunity/BMP180/blob/master/C/BMP180.c
+
    ATMEGA328 + LoRa RA01 transmit mode
    ATMEGA 328P:
 RTC: 9-10 32768 Hz QZ 
