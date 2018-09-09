@@ -14,6 +14,10 @@
 #define SPI_SCK         (1 << PB5)
 
 /*
+
+Atmega328p Vcc ADC:
+https://arduino.stackexchange.com/questions/23526/measure-different-vcc-using-1-1v-bandgap
+
 BMP180:
 https://cdn-shop.adafruit.com/datasheets/BST-BMP180-DS000-09.pdf
 https://github.com/ControlEverythingCommunity/BMP180/blob/master/C/BMP180.c

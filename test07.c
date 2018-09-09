@@ -134,6 +134,9 @@ https://www.semtech.com/uploads/documents/DS_SX1276-7-8-9_W_APP_V5.pdf
 Decoding LoRa - modulation, SF, CR, BW:
 https://revspace.nl/DecodingLora
 
+LoRaWAN 1.1 Regional Parameters:
+https://iotas.ru/files/documents/LoRaWAN%20Regional%20Parameters%20v1.1rB.pdf
+
 RX = "receive"
 TX = "transmit"
 SF = "spreading factor"
