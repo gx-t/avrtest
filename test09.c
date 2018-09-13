@@ -220,7 +220,7 @@ static void lora_init_rx()
             , 0x06, 0x6C //MSB 433920000 Hz
             , 0x07, 0x7A //Mid
             , 0x08, 0xE1 //LSB
-            , 0x0E, 0x00 //RX base address
+            , 0x0F, 0x00 //RX base address
             , 0x1D, 0b00100011 //BW = 15.2 Khz, CR=4/5, implicit header
             , 0x1E, 0b11000100 //SF = 12, CRC
             , 0x20, 0x00 //Preamble len MSB

@@ -15,6 +15,13 @@
 
 /*
 
+TODO:
+1. Try to flash with RESET low... NOK :(
+2. Adopt to single timeout mode (add and use sleep_cpu_xx() functions)
+3. Try using WDT
+4. Try using low frequency mode
+5. Decrease power consumption using PRR register
+
 Atmega328p Vcc ADC:
 https://arduino.stackexchange.com/questions/23526/measure-different-vcc-using-1-1v-bandgap
 
