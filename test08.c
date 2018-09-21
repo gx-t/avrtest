@@ -264,10 +264,52 @@ static uint8_t lora_check_tx_done()
     return !!(0b0001000 & lora_read_reg(0x12));
 }
 
+static void adc_mux_avcc_11()
+{
+    ADMUX = 0b01001110; 
+}
+
+static void adc_mux_off_gnd()
+{
+    ADMUX = 0b00001111;
+}
+
+static void adc_en_sc_128()
+{
+    ADCSRA = 0b11000111;
+}
+
+static void adc_disable_128()
+{
+    ADCSRA = 0b00000111;
+}
+
+static void adc_wait_done()
+{
+    while(ADCSRA & (1 << ADSC));
+}
+
+static void adc_read_vcc()
+{
+    adc_mux_avcc_11();
+    adc_en_sc_128();
+    adc_wait_done();
+    adc_en_sc_128();
+    adc_wait_done();
+
+    //VCC = 1.1 * 1023 / read
+    p_hex_digit(ADCL);
+    p_hex_digit(ADCH);
+    p_line("");
+    adc_mux_off_gnd();
+    adc_disable_128();
+}
+
 static void f_tx()
 {
     lora_init_tx();
     p_line("TX");
+    adc_read_vcc();
 //    lora_print_settings();
     while(!(PINB & LORA_RX_TX_DONE) || !lora_check_tx_done()) {
         p_line("TX Check");
@@ -275,6 +317,7 @@ static void f_tx()
     }
     p_line("TX Done");
     lora_set_sleep_mode();
+    adc_read_vcc();
 }
 
 static void f_pause()

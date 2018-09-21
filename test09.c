@@ -215,26 +215,30 @@ static void lora_set_sleep_mode()
 static void lora_init_rx()
 {
     lora_reset_pin();
-    static const uint8_t lora_rx_init_blob[] = {
-        0x01, 0b10001000 //Sleep Mode
-            , 0x06, 0x6C //MSB 433920000 Hz
-            , 0x07, 0x7A //Mid
-            , 0x08, 0xE1 //LSB
-            , 0x0E, 0x00 //RX base address
-            , 0x1D, 0b00100011 //BW = 15.2 Khz, CR=4/5, implicit header
-            , 0x1E, 0b11000100 //SF = 12, CRC
-            , 0x20, 0x00 //Preamble len MSB
-            , 0x21, 0x06 //Preamble len LSB
-            , 0x22, 0x01 //Payload length = 1
-            , 0x26, 0b00001100 //Low Data Rate Optimize on, AGC on
-            , 0x31, 0xC3 //Data Detection Optimize for SF = 7..12
-            , 0x37, 0x0A //Detection Threshold for SF = 7..12
-            , 0x39, 0x12 //Synch Word = 0x12
-            , 0x40, 0b00000000 //Map RX Done to DIO0
-            , 0x01, 0b10001101 //RX Cont mode
-            , 0xFF, 0xFF //end
+    static const uint8_t lora_init_blob[] = {
+        0x01, 0x88 //Sleep Mode
+            , 0x06, 0x6c //MSB 433920000 Hz
+            , 0x07, 0x7a //Mid.
+            , 0x08, 0xe1 //LSB
+            , 0x0B, 0b00001011 //OCP off
+            , 0x0C, 0b00100000 //LNA highest gain
+            , 0x0E, 0x00 //TX base address
+            , 0x0F, 0x00 //RX base address
+            , 0x1D, 0x23 //BW, CR, header mode
+            , 0x1E, 0xc4 //SF, CRC
+            , 0x20, 0x0 //Preamble len MSB
+            , 0x21, 0x6 //Preamble len LSB
+            , 0x22, 0x1 //Payload length = 1
+            , 0x26, 0xc //Low Data Rate Optimize, AGC
+            , 0x31, 0xC3 //Data Detection Optimize for 7..12
+            , 0x37, 0x0a //Data Detection Threshold for 7..12
+            , 0x39, 0x12 //Synch Word
+            , 0x40, 0x00 //Map RX Done to DIO0
+            , 0x01, 0x8d //Receive continuous (RXCONTINUOUS)
+
+            , 0xFF, 0xFF //END
     };
-    const uint8_t* pp = lora_rx_init_blob;
+    const uint8_t* pp = lora_init_blob;
     while(0xFF != *pp) {
         lora_write_reg(pp[0], pp[1]);
         pp+=2;
@@ -267,22 +271,29 @@ static void lora_set_fifo_buffer_address(uint8_t address)
 static void lora_read_rx_data()
 {
     uint8_t data = lora_read_reg(0x00);
-    'L' == data ? led_on() : led_off();
+    
+    'L' == data ? p_line("L") : p_line(":(");
+}
+
+//RegIrqFlags
+static void lora_reset_irq()
+{
+    lora_write_reg(0x12, 0xff);
 }
 
 static void f_rx()
 {
     lora_init_rx();
     lora_print_settings();
-    while(!(PINB & LORA_RX_TX_DONE) || !lora_check_rx_done()) {
-        p_line("RX Check");
-        sleep_cpu();
+    while(1) {
+        while(!(PINB & LORA_RX_TX_DONE) || !lora_check_rx_done()) {
+            p_line("RX Check");
+            sleep_cpu();
+        }
+        p_line("RX Done");
+        lora_reset_irq();
+        lora_read_rx_data();
     }
-    p_line("RX Done");
-    lora_read_rx_data();
-    lora_set_sleep_mode();
-    sleep_cpu();
-    led_off();
 }
 
 static void sys_init()
@@ -300,9 +311,7 @@ static void sys_init()
 int main(void)
 {
     sys_init();
-    while(1) {
-        f_rx();
-    } 
+    f_rx();
     return 0;
 }
 
