@@ -16,11 +16,8 @@
 /*
 
 TODO:
-1. Try to flash with RESET low... NOK :(
-2. Adopt to single timeout mode (add and use sleep_cpu_xx() functions)
-3. Try using WDT
-4. Try using low frequency mode
-5. Decrease power consumption using PRR register
+1. Decrease power consumption using PRR register
+2. Use TX Done interrupt
 
 Atmega328p Vcc ADC:
 https://arduino.stackexchange.com/questions/23526/measure-different-vcc-using-1-1v-bandgap
@@ -29,37 +26,34 @@ BMP180:
 https://cdn-shop.adafruit.com/datasheets/BST-BMP180-DS000-09.pdf
 https://github.com/ControlEverythingCommunity/BMP180/blob/master/C/BMP180.c
 
-   ATMEGA328 + LoRa RA01 transmit mode
-   ATMEGA 328P:
-RTC: 9-10 32768 Hz QZ 
-9 -- 32768HZ -- 10
-Serial in/out
-LoRa:
-PB0 -- RST
-PB1 -- DIO0 (RX interrupt)
-PB2 -- NSS
-PB3 -- MOSI
-PB4 -- MISO
-PB5 -- SCK
+ATMEGA328 + LoRa RA01 transmit mode
 
-Interrupts: RTC (timer 2 overflow), UART RX, pin change PB1
-!! PB2 -- 100K -- VCC (disable loRa during ASP programming)
+mcu = ATMEGA328:
+lora = RA01
+mcu.1 - 3300pf - gnd
+mcu.7 - vcc
+mcu.7 - 0.1uf - gnd
+mcu.8 - gnd
+mcu.9 - qz 32768hz - 10
+mcu.14 - lora.reset
+mcu.15 - lora.dio0
+mcu.16 - lora.nss
+mcu.16 - 100K - vcc
+mcu.17 - lora.mosi
+mcu.18 - lora.miso
+mcu.19 - lora.sck
+mcu.20 - vcc
+mcu.21 - 0.1uF - gnd
+mcu.22 - gnd
+
+
 
 SX1276/77/78/79 datasheet:
 https://www.semtech.com/uploads/documents/DS_SX1276-7-8-9_W_APP_V5.pdf
 
-Decoding LoRa - modulation, SF, CR, BW:
+Decoding LoRa - modulation
 https://revspace.nl/DecodingLora
 
-RX = "receive"
-TX = "transmit"
-SF = "spreading factor"
-BW = "bandwidth"
-ECR = "error coding rate"
-AGC = "automatic gain control"
-OCP = "overcurrent protection"
-PA = "power amplifier"
-PCINT = "pin change interrupt"
  */
 
 ///////////////////////////////////////////////////////////////////////////////
