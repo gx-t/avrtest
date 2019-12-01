@@ -5,6 +5,25 @@
 #define F_CPU 8000000UL
 #include <util/delay.h>
 
+static void oscilate()
+{
+    static int8_t s[2][4] = {{0, 0, 0, 0}, {0, 0, 0, 0}};
+    static int8_t c[2][4] = {{16, 16, 16, 16}, {16, 16, 16, 16}};
+    const int8_t f[2][4] = {{10, 12, 14, 16}, {9, 11, 13, 15}};
+    uint8_t i = 0, j = 0, ss[2] = {127, 127}, cc[2] = {127, 127};
+    for(j = 0; j < 2; j ++) {
+        for(i = 0; i < 4; i ++) {
+            s[j][i] += c[j][i] / f[j][i];
+            c[j][i] -= s[j][i] / f[j][i];
+            ss[j] += s[j][i];
+            cc[j] += c[j][i];
+        }
+    }
+    OCR0A = ss[0];
+    OCR0B = ss[1];
+    OCR2A = cc[0];
+    OCR2B = cc[1];
+}
 
 int main (void) {
 
@@ -12,7 +31,8 @@ int main (void) {
      * We will be using OCR1A as our PWM output which is the
      * same pin as PD6.
      */
-    DDRD |= _BV(PD6) | _BV(PD5) | _BV(PB1) | _BV(PB2);
+    DDRD |= _BV(PD6) | _BV(PD5) | _BV(PD3);
+    DDRB |= _BV(PB3);
 
     /**
      * There are quite a number of PWM modes available but for the
@@ -25,8 +45,11 @@ int main (void) {
      * speed).  The timer is used to determine when the PWM pin should be
      * on and when it should be off.
      */
-    TCCR0A |= _BV(COM0A1) | _BV(COM0B1) | _BV(WGM00) | _BV(WGM01);
+    TCCR0A |= _BV(COM2A1) | _BV(COM0B1) | _BV(WGM00) | _BV(WGM01);
     TCCR0B |= _BV(CS00);
+
+    TCCR2A |= _BV(COM2A1) | _BV(COM2B1) | _BV(WGM20) | _BV(WGM21);
+    TCCR2B |= _BV(CS00);
 
     /**
      *  This loop is used to change the value in the OCR0A register.
@@ -47,20 +70,9 @@ int main (void) {
      *  to see what when the pwm value is at 0x00 the LED will be off
      *  and when it is 0xff the LED will be at its brightest.
      */
-	int8_t s1 = 0, s2 = 0, s3 = 0, s4 = 0;
-	int8_t c1 = 120, c2 = 120, c3 = 120, c4 = 120;
 	while(1) {
-		s1 += c1 / 10;
-		c1 -= s1 / 10;
-		s2 += c2 / 12;
-		c2 -= s2 / 12;
-		s3 += c3 / 20;
-		c3 -= s3 / 20;
-		s4 += c4 / 21;
-		c4 -= s4 / 21;
-		OCR0A = ((s1 + s2 + s2 + s4) >> 2) + 127;
-		OCR0B = ((c1 + c2 + c2 + c4) >> 2) + 127;
-        _delay_ms(5);
+		oscilate();
+       _delay_ms(5);
     }
 
     return 0;
