@@ -6,13 +6,6 @@
 #define F_CPU 8000000UL
 #include <util/delay.h>
 
-//ISR(PCINT_vect) {
-////  if(PINB & 0b00000001) {
-////      run = !run;
-////  }
-////  PORTD = run ? 0b00000000:0b01100000;
-//}
-
 ISR(PCINT0_vect)
 {
 }
@@ -107,10 +100,10 @@ static void effect_1()
 
 int main(void) {
 
-    cli(); //disable interrupts
+    cli();
 
     PORTB |= _BV(PB0); //pull-up on PB0
-    PORTC |= _BV(PC6); //reset and button pull-up
+    PORTC |= _BV(PC6); //reset pull-up
 
     DDRD |= _BV(PD6) | _BV(PD5) | _BV(PD3);
     DDRB |= _BV(PB3);
@@ -129,7 +122,7 @@ int main(void) {
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     sleep_enable();
 
-    sei(); //enable interrupts
+    sei();
 
     while(1) {
         effect_0();
