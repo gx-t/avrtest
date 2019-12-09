@@ -97,28 +97,35 @@ static void effect_0()
 static void effect_1()
 {
     static float s[4] = {0, 0, 0, 0};
-    static float c[4] = {127, 127, 127, 127};
+    static float c[4] = {2, 2, 2, 2};
+    const uint16_t n_arr[] = {1000, 2000, 4000, 8000};
+    uint8_t r0 = 0;
+    uint8_t r = 0;
 
     while(btn_get_state()) {
 
-        int r = random();
-        for(uint8_t i = 0; i < sizeof(s) / sizeof(s[0]); i ++, r >>= 1) {
-            if(r & 1) {
-                s[i] = 0;
-                c[i] = 127;
-            }
-        }
+        do {
+            r = random() & 0x03;
+        }while(r == r0);
 
-        for(uint16_t i = 0; btn_get_state() && i < 5000; i ++) {
+        r0 = r;
+
+        s[r] = 0;
+        c[r] = 15;
+
+
+        uint16_t n = n_arr[random() % sizeof(n_arr) / sizeof(n_arr[0])];
+
+        for(uint16_t i = 0; btn_get_state() && i < n; i ++) {
             for(uint8_t j = 0; j < sizeof(s) / sizeof(s[0]); j ++) {
-                c[j] -= s[j] * 0.016;
-                s[j] += c[j] * 0.016;
-                s[j] += (0 - s[j]) * 0.0005;
+                c[j] -= s[j] * 0.004;
+                s[j] += c[j] * 0.004;
+                s[j] += (0 - s[j]) * 0.0003;
             }
-            OCR0A = (uint8_t)(s[0] + 127);
-            OCR0B = (uint8_t)(s[1] + 127);
-            OCR2A = (uint8_t)(s[2] + 127);
-            OCR2B = (uint8_t)(s[3] + 127);
+            OCR0A = (uint8_t)(s[0] * s[0] + 5);
+            OCR0B = (uint8_t)(s[1] * s[1] + 5);
+            OCR2A = (uint8_t)(s[2] * s[2] + 5);
+            OCR2B = (uint8_t)(s[3] * s[3] + 5);
         }
     }
     btn_wait_release();
