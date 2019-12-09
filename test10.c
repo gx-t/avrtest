@@ -109,7 +109,7 @@ static void effect_1()
             }
         }
 
-        for(uint16_t i = 0; i < 5000; i ++) {
+        for(uint16_t i = 0; btn_get_state() && i < 5000; i ++) {
             for(uint8_t j = 0; j < sizeof(s) / sizeof(s[0]); j ++) {
                 c[j] -= s[j] * 0.016;
                 s[j] += c[j] * 0.016;
@@ -119,9 +119,6 @@ static void effect_1()
             OCR0B = (uint8_t)(s[1] + 127);
             OCR2A = (uint8_t)(s[2] + 127);
             OCR2B = (uint8_t)(s[3] + 127);
-
-            if(!(btn_get_state()))
-                break;
         }
     }
     btn_wait_release();
