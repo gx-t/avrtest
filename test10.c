@@ -13,6 +13,9 @@
     5, 11, 12, 17   LED(n)+
     14  btn
     2.2uF 0802 7, 8
+    
+    https://easyeda.com/shah32768/avr-test-10-v0-1
+    https://youtu.be/LO7K465h5iU
 */
 
 
