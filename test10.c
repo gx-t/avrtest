@@ -99,9 +99,8 @@ static void effect_0()
 
 static void effect_1()
 {
-    static float s[4] = {0, 0, 0, 0};
-    static float c[4] = {2, 2, 2, 2};
-    const uint16_t n_arr[] = {1000, 2000, 4000, 8000};
+    float s[4] = {0, 0, 0, 0};
+    float c[4] = {0, 0, 0, 0};
     uint8_t r0 = 0;
     uint8_t r = 0;
 
@@ -116,19 +115,53 @@ static void effect_1()
         s[r] = 0;
         c[r] = 15;
 
-
-        uint16_t n = n_arr[random() % sizeof(n_arr) / sizeof(n_arr[0])];
-
-        for(uint16_t i = 0; btn_get_state() && i < n; i ++) {
+        for(uint16_t i = 0; btn_get_state() && i < 9000; i ++) {
             for(uint8_t j = 0; j < sizeof(s) / sizeof(s[0]); j ++) {
-                c[j] -= s[j] * 0.004;
-                s[j] += c[j] * 0.004;
+                c[j] -= s[j] * 0.002;
+                s[j] += c[j] * 0.002;
                 s[j] += (0 - s[j]) * 0.0003;
             }
-            OCR0A = (uint8_t)(s[0] * s[0] + 5);
-            OCR0B = (uint8_t)(s[1] * s[1] + 5);
-            OCR2A = (uint8_t)(s[2] * s[2] + 5);
-            OCR2B = (uint8_t)(s[3] * s[3] + 5);
+            OCR0A = (uint8_t)(s[0] * s[0] + 2);
+            OCR0B = (uint8_t)(s[1] * s[1] + 2);
+            OCR2A = (uint8_t)(s[2] * s[2] + 2);
+            OCR2B = (uint8_t)(s[3] * s[3] + 2);
+        }
+    }
+    btn_wait_release();
+}
+
+static void effect_2()
+{
+    float s[4] = {0, 0, 0, 0};
+    float c[4] = {0, 0, 0, 0};
+    float f[4] = {0.002, 0.002, 0.002, 0.002};
+    uint8_t r0 = 0;
+    uint8_t r = 0;
+
+    while(btn_get_state()) {
+
+        do {
+            r = random() & 0x03;
+        }while(r == r0);
+
+        r0 = r;
+
+        s[r] = 0;
+        c[r] = 16;
+        f[r] = 0.001;
+
+        for(uint16_t i = 0; btn_get_state() && i < 9000; i ++) {
+            for(uint8_t j = 0; j < sizeof(s) / sizeof(s[0]); j ++) {
+                c[j] -= s[j] * f[j];
+                s[j] += c[j] * f[j];
+                s[j] += (0 - s[j]) * 0.00025;
+                if(f[j] < 0.1)
+                    f[j] *= 1.0002;
+            }
+            OCR0A = (uint8_t)(s[0] * s[0]);
+            OCR0B = (uint8_t)(s[1] * s[1]);
+            OCR2A = (uint8_t)(s[2] * s[2]);
+            OCR2B = (uint8_t)(s[3] * s[3]);
         }
     }
     btn_wait_release();
@@ -153,6 +186,7 @@ int main(void) {
     while(1) {
         effect_0();
         effect_1();
+        effect_2();
         sys_sleep();
     }
 

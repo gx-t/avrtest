@@ -34,31 +34,31 @@ all:
 	avr-gcc -mmcu=atmega328p -Wall -Werror -Os -s test05.c -o test05.elf
 	avr-objcopy -j .text -j .data -O ihex test05.elf test05.hex
 	rm *.elf
-	avrdude -c USBASP -p m328p -U flash:w:test05.hex -U lfuse:w:0xc2:m 
+	avrdude -c USBASP -p m328p -U flash:w:test05.hex -U lfuse:w:0xe2:m 
 
 06:
 	avr-gcc -mmcu=atmega328p -Wall -Werror -O2 -s test06.c -o test06.elf
 	avr-objcopy -j .text -j .data -O ihex test06.elf test06.hex
 	rm *.elf
-	avrdude -c USBASP -p m328p -U flash:w:test06.hex -U lfuse:w:0xc2:m 
+	avrdude -c USBASP -p m328p -U flash:w:test06.hex -U lfuse:w:0xe2:m 
 
 07:
 	avr-gcc -mmcu=atmega328p -Wno-unused-function -Wall -Werror -Os -s test07.c -o test07.elf
 	avr-objcopy -j .text -j .data -O ihex test07.elf test07.hex
 	rm *.elf
-	avrdude -c USBASP -p m328p -U flash:w:test07.hex -U lfuse:w:0xc2:m -U hfuse:w:0xd9:m 
+	avrdude -c USBASP -p m328p -U flash:w:test07.hex -U lfuse:w:0xe2:m -U hfuse:w:0xd9:m 
 
 08:
 	avr-gcc -mmcu=atmega328p -Wno-unused-function -Wall -Werror -Os -s test08.c -o test08.elf
 	avr-objcopy -j .text -j .data -O ihex test08.elf test08.hex
 	rm *.elf
-	avrdude -c USBASP -p m328p -U flash:w:test08.hex -U lfuse:w:0xc2:m -U hfuse:w:0xd9:m 
+	avrdude -c USBASP -p m328p -U flash:w:test08.hex -U lfuse:w:0xe2:m -U hfuse:w:0xd9:m 
 
 09:
 	avr-gcc -mmcu=atmega328p -Wno-unused-function -Wall -Werror -Os -s test09.c -o test09.elf
 	avr-objcopy -j .text -j .data -O ihex test09.elf test09.hex
 	rm *.elf
-	avrdude -c USBASP -p m328p -U flash:w:test09.hex -U lfuse:w:0xc2:m -U hfuse:w:0xd9:m 
+	avrdude -c USBASP -p m328p -U flash:w:test09.hex -U lfuse:w:0xe2:m -U hfuse:w:0xd9:m 
 
 10:
 	avr-gcc -mmcu=atmega328p -Wno-unused-function -Wall -Werror -Os -s test10.c -o test10.elf
