@@ -34,7 +34,7 @@ all:
 	avr-gcc -mmcu=atmega328p -Wall -Werror -Os -s test05.c -o test05.elf
 	avr-objcopy -j .text -j .data -O ihex test05.elf test05.hex
 	rm *.elf
-	avrdude -c USBASP -p m328p -U flash:w:test05.hex -U lfuse:w:0xe2:m 
+	avrdude -c USBASP -p m328p -U flash:w:test05.hex  -U lfuse:w:0xe2:m -U hfuse:w:0xd9:m -U efuse:w:0xff:m 
 
 06:
 	avr-gcc -mmcu=atmega328p -Wall -Werror -O2 -s test06.c -o test06.elf
@@ -65,6 +65,12 @@ all:
 	avr-objcopy -j .text -j .data -O ihex test10.elf test10.hex
 	rm *.elf
 	avrdude -c USBASP -p m328p -U flash:w:test10.hex -U lfuse:w:0xe2:m -U hfuse:w:0xd9:m -U efuse:w:0xff:m
+
+11:
+	avr-gcc -mmcu=atmega328p -Wall -Werror -Os -s test11.c -o test11.elf
+	avr-objcopy -j .text -j .data -O ihex test11.elf test11.hex
+	rm *.elf
+	avrdude -c USBASP -p m328p -U flash:w:test11.hex -U lfuse:w:0xe2:m -U hfuse:w:0xd9:m -U efuse:w:0xff:m
 
 client_rel:
 	gcc -O2 -Werror -s client.c -o client
