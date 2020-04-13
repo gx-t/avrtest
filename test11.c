@@ -10,6 +10,15 @@
     Solar cell + ultracapacitor powered LED beacon
 
     ATTINY85
+    PB0 - LED0
+    PB1 - LED1
+    PB3 - LED2
+    PB4 - LED3
+
+    VCC, GND 2.2uF 0805
+    VCC - 1N5817 - 4.7V zener - GND
+
+    Solar - GND, 4.7V zener
 */
 
 static void gpio_init()
