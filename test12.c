@@ -19,7 +19,7 @@
 #define USART_BAUD 38400UL
 #define USART_UBBR_VALUE ((F_CPU / (USART_BAUD << 4)) - 1)
 
-static void init_uart() {
+static void uart_init() {
     UBRR0 = USART_UBBR_VALUE;
     UCSR0A = 0;
     //Enable UART
@@ -44,24 +44,24 @@ static FILE uart_str = {
     .flags = _FDEV_SETUP_WRITE
 };
 
-static void enable_reset_pullup()
+static void gpio_enable_reset_pullup()
 {
     PORTC = 0b01000000;
 }
 
-static void enable_output_pin()
+static void gpio_enable_output_pin()
 {
     DDRD = 0b00001000;
 }
 
-static void init_system()
+static void sys_init()
 {
     cli();
     set_sleep_mode(SLEEP_MODE_IDLE);
     sleep_enable();
-    enable_reset_pullup();
-    enable_output_pin();
-    init_uart();
+    gpio_enable_reset_pullup();
+    gpio_enable_output_pin();
+    uart_init();
     sei();
 }
 
@@ -75,45 +75,86 @@ static void show_usage()
     fprintf(&uart_str, "\r\n");
 }
 
-static void f0_set_gpio()
+#define ADMUX_SRC_GND__REF_OFF                          0b00001111
+#define ADCSRA_ENABLE_START__DIV_128                    0b11000111
+#define ADCSRA_CONVERSION_IN_PROGRESS                   0b01000000
+#define ADCSRA_DISABLE__DIV_128                         0b00000111
+
+static void adc_set_src_1_1v__ref_avcc_with_cap_at_ref_pin()    { ADMUX = 0b01001110; }
+static void adc_enable_start_conversion__div_128()              { ADCSRA = 0b11000111; }
+static void adc_enable_start_conversion__div_2()                { ADCSRA = 0b11000001; }
+static void adc_wait_convertion()                               { while(ADCSRA & 0b01000000); }
+static uint16_t adc_read_result_16()                            { return ADC; }
+static void adc_src_gnd__ref_off()                              { ADMUX = 0b00001111; }
+static void adc_disable__div_128()                              { ADCSRA = 0b00000111; }
+
+static void f0_vcc_read(const char* descr)
 {
-    fprintf(&uart_str, "%s\r\n", __func__);
+    adc_set_src_1_1v__ref_avcc_with_cap_at_ref_pin();
+    adc_enable_start_conversion__div_2();
+    adc_wait_convertion();
+    float vcc = adc_read_result_16();
+    uint8_t cnt = 0xFF;
+    while(cnt --) {
+        adc_enable_start_conversion__div_2();
+        adc_wait_convertion();
+        vcc += adc_read_result_16();
+        vcc /= 2.0;
+    }
+    adc_src_gnd__ref_off();
+    adc_disable__div_128();
+    fprintf(&uart_str, "%s: %u mV\r\n", descr, (uint16_t)(1100.0 * 1023.0 / vcc));
 }
 
-static void f0_reset_gpio()
+static void f0_gpio_set(const char* descr)
 {
-    fprintf(&uart_str, "%s\r\n", __func__);
+    fprintf(&uart_str, "%s\r\n", descr);
 }
 
-static void f0_read_adc()
+static void f0_gpio_reset(const char* descr)
 {
-    fprintf(&uart_str, "%s\r\n", __func__);
+    fprintf(&uart_str, "%s\r\n", descr);
 }
 
-static void f0_input()
+static void f0_adc_read(const char* descr)
 {
-    void (*proc_tbl[])() = {
-        f0_set_gpio,
-        f0_reset_gpio,
-        f0_read_adc
+    fprintf(&uart_str, "%s\r\n", descr);
+}
+
+static void f0_menu()
+{
+    struct {
+        char* descr;
+        void (*proc)();
+    } menu[] = {
+        {"VCC read", f0_vcc_read},
+        {"GPIO set", f0_gpio_set},
+        {"GPIO reset", f0_gpio_reset},
+        {"ADC read", f0_adc_read},
     };
 
     uint8_t ch = UDR0;
-    if(ch < 'a' || ch > 'c')
-        return show_usage();
+    if(ch < 'a' || ch >= 'a' + sizeof(menu) / sizeof(menu[0])) {
+        fprintf(&uart_str, "\r\nUsage:\r\n");
+        for(uint8_t i = 0; i < sizeof(menu) / sizeof(menu[0]); i ++) {
+            fprintf(&uart_str, "%c: %s\r\n", 'a' + i, menu[i].descr);
+        }
+        fprintf(&uart_str, "\r\n");
+        return;
+    }
 
     ch -= 'a';
-    proc_tbl[ch]();
+    menu[ch].proc(menu[ch].descr);
 }
 
 int main(void)
 {
-    init_system();
+    sys_init();
     while(1) {
         sleep_cpu();
         if(!(UCSR0A & (1 << RXC0)))
             continue;
-        f0_input();
+        f0_menu();
     }
     return 0;
 }
