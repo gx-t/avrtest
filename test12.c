@@ -75,6 +75,12 @@ static uint16_t adc_read_result_16()                            { return ADC; }
 static void adc_src_gnd__ref_off()                              { ADMUX = 0b00001111; }
 static void adc_disable__div_128()                              { ADCSRA = 0b00000111; }
 
+static void adc_release()
+{
+    adc_src_gnd__ref_off();
+    adc_disable__div_128();
+}
+
 static void f0_vcc_read(const char* descr)
 {
     adc_set_src_1_1v__ref_avcc_with_cap_at_aref_pin();
@@ -88,8 +94,7 @@ static void f0_vcc_read(const char* descr)
         vcc += adc_read_result_16();
         vcc /= 2.0;
     }
-    adc_src_gnd__ref_off();
-    adc_disable__div_128();
+    adc_release();
     fprintf(&uart_str, "%s: %u mV\r\n", descr, (uint16_t)(1100.0 * 1023.0 / vcc));
 }
 
@@ -105,30 +110,29 @@ static void f0_gpio_unset(const char* descr)
     fprintf(&uart_str, "%s\r\n", descr);
 }
 
+static uint16_t adc_warmup_wait_read()
+{
+    adc_enable_start_conversion__div_2();
+    adc_wait_convertion();
+    adc_enable_start_conversion__div_2();
+    adc_wait_convertion();
+    return adc_read_result_16();
+}
+
 static void f0_adc_read(const char* descr)
 {
     adc_set_src_adc0__ref_vcc_with_cap_at_aref_pin();
-    adc_enable_start_conversion__div_2();
-    adc_wait_convertion();
-    adc_enable_start_conversion__div_2();
-    adc_wait_convertion();
-    uint16_t vcc = adc_read_result_16();
-    adc_src_gnd__ref_off();
-    adc_disable__div_128();
-    fprintf(&uart_str, "%s: %u\r\n", descr, vcc);
+    uint16_t val = adc_warmup_wait_read();
+    adc_release();
+    fprintf(&uart_str, "%s: %u\r\n", descr, val);
 }
 
 static void f0_temp_read(const char* descr)
 {
     adc_set_src_temp__ref_1_1v_with_cap_at_aref_pin();
-    adc_enable_start_conversion__div_2();
-    adc_wait_convertion();
-    adc_enable_start_conversion__div_2();
-    adc_wait_convertion();
-    uint16_t vcc = adc_read_result_16();
-    adc_src_gnd__ref_off();
-    adc_disable__div_128();
-    fprintf(&uart_str, "%s: %u\r\n", descr, vcc);
+    uint16_t val = adc_warmup_wait_read();
+    adc_release();
+    fprintf(&uart_str, "%s: %u\r\n", descr, val);
 }
 
 static void f0_menu()
