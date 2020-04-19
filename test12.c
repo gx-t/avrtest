@@ -75,12 +75,9 @@ static void show_usage()
     fprintf(&uart_str, "\r\n");
 }
 
-#define ADMUX_SRC_GND__REF_OFF                          0b00001111
-#define ADCSRA_ENABLE_START__DIV_128                    0b11000111
-#define ADCSRA_CONVERSION_IN_PROGRESS                   0b01000000
-#define ADCSRA_DISABLE__DIV_128                         0b00000111
-
-static void adc_set_src_1_1v__ref_avcc_with_cap_at_ref_pin()    { ADMUX = 0b01001110; }
+static void adc_set_src_1_1v__ref_avcc_with_cap_at_aref_pin()   { ADMUX = 0b01001110; }
+static void adc_set_src_adc0__ref_vcc_with_cap_at_aref_pin()    { ADMUX = 0b01000000; }
+static void adc_set_src_temp__ref_1_1v_with_cap_at_aref_pin()   { ADMUX = 0b11001000; }
 static void adc_enable_start_conversion__div_128()              { ADCSRA = 0b11000111; }
 static void adc_enable_start_conversion__div_2()                { ADCSRA = 0b11000001; }
 static void adc_wait_convertion()                               { while(ADCSRA & 0b01000000); }
@@ -90,7 +87,7 @@ static void adc_disable__div_128()                              { ADCSRA = 0b000
 
 static void f0_vcc_read(const char* descr)
 {
-    adc_set_src_1_1v__ref_avcc_with_cap_at_ref_pin();
+    adc_set_src_1_1v__ref_avcc_with_cap_at_aref_pin();
     adc_enable_start_conversion__div_2();
     adc_wait_convertion();
     float vcc = adc_read_result_16();
@@ -108,17 +105,40 @@ static void f0_vcc_read(const char* descr)
 
 static void f0_gpio_set(const char* descr)
 {
+    PORTD = 0b00001000;
     fprintf(&uart_str, "%s\r\n", descr);
 }
 
-static void f0_gpio_reset(const char* descr)
+static void f0_gpio_unset(const char* descr)
 {
+    PORTD = 0b00000000;
     fprintf(&uart_str, "%s\r\n", descr);
 }
 
 static void f0_adc_read(const char* descr)
 {
-    fprintf(&uart_str, "%s\r\n", descr);
+    adc_set_src_adc0__ref_vcc_with_cap_at_aref_pin();
+    adc_enable_start_conversion__div_2();
+    adc_wait_convertion();
+    adc_enable_start_conversion__div_2();
+    adc_wait_convertion();
+    uint16_t vcc = adc_read_result_16();
+    adc_src_gnd__ref_off();
+    adc_disable__div_128();
+    fprintf(&uart_str, "%s: %u\r\n", descr, vcc);
+}
+
+static void f0_temp_read(const char* descr)
+{
+    adc_set_src_temp__ref_1_1v_with_cap_at_aref_pin();
+    adc_enable_start_conversion__div_2();
+    adc_wait_convertion();
+    adc_enable_start_conversion__div_2();
+    adc_wait_convertion();
+    uint16_t vcc = adc_read_result_16();
+    adc_src_gnd__ref_off();
+    adc_disable__div_128();
+    fprintf(&uart_str, "%s: %u\r\n", descr, vcc);
 }
 
 static void f0_menu()
@@ -129,8 +149,9 @@ static void f0_menu()
     } menu[] = {
         {"VCC read", f0_vcc_read},
         {"GPIO set", f0_gpio_set},
-        {"GPIO reset", f0_gpio_reset},
+        {"GPIO unset", f0_gpio_unset},
         {"ADC read", f0_adc_read},
+        {"Temp. read", f0_temp_read},
     };
 
     uint8_t ch = UDR0;
