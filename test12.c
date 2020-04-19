@@ -65,16 +65,6 @@ static void sys_init()
     sei();
 }
 
-static void show_usage()
-{
-    fprintf(&uart_str, "\r\n");
-    fprintf(&uart_str, "Usage:\r\n");
-    fprintf(&uart_str, "a: GPIO set\r\n");
-    fprintf(&uart_str, "b: GPIO reset\r\n");
-    fprintf(&uart_str, "c: ADC read\r\n");
-    fprintf(&uart_str, "\r\n");
-}
-
 static void adc_set_src_1_1v__ref_avcc_with_cap_at_aref_pin()   { ADMUX = 0b01001110; }
 static void adc_set_src_adc0__ref_vcc_with_cap_at_aref_pin()    { ADMUX = 0b01000000; }
 static void adc_set_src_temp__ref_1_1v_with_cap_at_aref_pin()   { ADMUX = 0b11001000; }
