@@ -14,6 +14,9 @@
     TX - PD1
     5 (PD3) - 100K 23(ADC0)
     23 (ADC0) - 2.2uF GND
+
+    Loop 5V: 8Mhz-16.3ma, 1Mhz-10.9ma, 128Khz-9.9ma, 31Khz-9.9ma
+    Loop 3.3V: 8Mhz-3.74ma, 1Mhz-0.74ma, 128Kh-0.21ma, 31Khz-0.15ma
 */
 
 #define USART_BAUD 38400UL
@@ -22,7 +25,6 @@
 static void uart_init() {
     UBRR0 = USART_UBBR_VALUE;
     UCSR0A = 0;
-    //Enable UART
     UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);
     //8 data bits, 1 stop bit
     UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
@@ -49,9 +51,12 @@ static void gpio_enable_reset_pullup()
     PORTC = 0b01000000;
 }
 
-static void gpio_enable_output_pin()
+static void cpu_clock_div_set(uint8_t num)
 {
-    DDRD = 0b00001000;
+    cli();
+    CLKPR = 0b10000000;
+    CLKPR = num & 0b00001111;
+    sei();
 }
 
 static void sys_init()
@@ -60,7 +65,6 @@ static void sys_init()
     set_sleep_mode(SLEEP_MODE_IDLE);
     sleep_enable();
     gpio_enable_reset_pullup();
-    gpio_enable_output_pin();
     uart_init();
     sei();
 }
@@ -100,12 +104,14 @@ static void f0_vcc_read(const char* descr)
 
 static void f0_gpio_set(const char* descr)
 {
+    DDRD = 0b00001000;
     PORTD = 0b00001000;
     fprintf(&uart_str, "%s\r\n", descr);
 }
 
 static void f0_gpio_unset(const char* descr)
 {
+    DDRD = 0b00001000;
     PORTD = 0b00000000;
     fprintf(&uart_str, "%s\r\n", descr);
 }
@@ -135,17 +141,67 @@ static void f0_temp_read(const char* descr)
     fprintf(&uart_str, "%s: %u\r\n", descr, val);
 }
 
+static void f0_gpio_time(const char* descr)
+{
+    DDRD = 0b00010000;
+    PORTD = 0b00000000;
+    DDRD = 0b00000000;
+    PORTD = 0b00010000;
+//    __asm__ __volatile__("nop");
+    fprintf(&uart_str, "%s %d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d\r\n", descr
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000)
+            , !!(PIND & 0b00010000));
+}
+
+static void f0_cpu_clock_test()
+{
+    fprintf(&uart_str, "CPU 31250 Hz 5s\r\n"); //3.3v0.15ma,5v9.9ma
+    _delay_ms(5);
+    cpu_clock_div_set(0b00001000);
+    _delay_ms(5000 / 256);
+    cpu_clock_div_set(0b00000000);
+    fprintf(&uart_str, "CPU 128 KHz 5s\r\n"); //3.3v0.21ma,5v9.9ma
+    _delay_ms(5);
+    cpu_clock_div_set(0b00000110);
+    _delay_ms(5000 / 64);
+    cpu_clock_div_set(0b00000000);
+    fprintf(&uart_str, "CPU 1 Mhz 5s\r\n"); //3.3v0.74ma,5v10.9ma
+    _delay_ms(5);
+    cpu_clock_div_set(0b00000011);
+    _delay_ms(5000 / 8);
+    cpu_clock_div_set(0b00000000);
+    fprintf(&uart_str, "CPU 8 Mhz 5s\r\n"); //3.3v3.74ma,5v16.3ma
+    _delay_ms(5000);
+    fprintf(&uart_str, "CPU done\r\n\r\n");
+}
+
 static void f0_menu()
 {
     struct {
         char* descr;
         void (*proc)();
     } menu[] = {
-        {"VCC read", f0_vcc_read},
-        {"GPIO set", f0_gpio_set},
-        {"GPIO unset", f0_gpio_unset},
-        {"ADC read", f0_adc_read},
-        {"Temp. read", f0_temp_read},
+        {"VCC read",    f0_vcc_read},
+        {"GPIO set",    f0_gpio_set},
+        {"GPIO unset",  f0_gpio_unset},
+        {"ADC read",    f0_adc_read},
+        {"Temp. read",  f0_temp_read},
+        {"GPIO dU/dT",  f0_gpio_time},
+        {"Clock test",  f0_cpu_clock_test},
     };
 
     uint8_t ch = UDR0;
