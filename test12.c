@@ -189,7 +189,7 @@ static void f0_cpu_clock_test()
     fprintf(&uart_str, "CPU done\r\n\r\n");
 }
 
-static void f0_menu()
+static void f0_menu(uint8_t ch)
 {
     struct {
         char* descr;
@@ -204,7 +204,6 @@ static void f0_menu()
         {"Clock test",  f0_cpu_clock_test},
     };
 
-    uint8_t ch = UDR0;
     if(ch < 'a' || ch >= 'a' + sizeof(menu) / sizeof(menu[0])) {
         fprintf(&uart_str, "\r\nUsage:\r\n");
         for(uint8_t i = 0; i < sizeof(menu) / sizeof(menu[0]); i ++) {
@@ -218,14 +217,19 @@ static void f0_menu()
     menu[ch].proc(menu[ch].descr);
 }
 
+static uint8_t sys_wait_event()
+{
+    do {
+        sleep_cpu();
+    }while(!(UCSR0A & (1 << RXC0)));
+    return UDR0;
+}
+
 int main(void)
 {
     sys_init();
     while(1) {
-        sleep_cpu();
-        if(!(UCSR0A & (1 << RXC0)))
-            continue;
-        f0_menu();
+        f0_menu(sys_wait_event());
     }
     return 0;
 }
