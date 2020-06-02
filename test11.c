@@ -2,7 +2,7 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <avr/wdt.h>
-#define F_CPU 1000000UL
+#define F_CPU 1200000UL
 #include <util/delay.h>
 
 /*
@@ -92,11 +92,11 @@ static void led_spark_left()
 
 static void led_spark_right()
 {
-    led_pulse(0b00000001);
     led_pulse(0b00010000);
     led_pulse(0b00001000);
     led_pulse(0b00000010);
     led_pulse(0b00000001);
+    led_pulse(0b00010000);
 }
 
 int main(void) {

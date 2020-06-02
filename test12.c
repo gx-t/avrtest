@@ -1,6 +1,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
+#include <avr/wdt.h>
 #include <stdio.h>
 
 #define F_CPU 8000000UL
@@ -51,6 +52,18 @@ static void gpio_enable_reset_pullup()
     PORTC = 0b01000000;
 }
 
+static void wdt_set_2s()
+{
+    WDTCSR = 0b00011000;
+    WDTCSR = 0b01001111;
+}
+
+ISR(WDT_vect)
+{
+    wdt_set_2s();
+//    fprintf(&uart_str, "WDT event\r\n");
+}
+
 static void cpu_clock_div_set(uint8_t num)
 {
     cli();
@@ -66,7 +79,10 @@ static void sys_init()
     sleep_enable();
     gpio_enable_reset_pullup();
     uart_init();
+    wdt_reset();
+    wdt_set_2s();
     sei();
+    fprintf(&uart_str, "main\r\n");
 }
 
 static void adc_set_src_1_1v__ref_avcc_with_cap_at_aref_pin()   { ADMUX = 0b01001110; }
@@ -104,15 +120,15 @@ static void f0_vcc_read(const char* descr)
 
 static void f0_gpio_set(const char* descr)
 {
-    DDRD = 0b00001000;
-    PORTD = 0b00001000;
+    DDRC = 0b00000001;
+    PORTC = 0b00000001;
     fprintf(&uart_str, "%s\r\n", descr);
 }
 
 static void f0_gpio_unset(const char* descr)
 {
-    DDRD = 0b00001000;
-    PORTD = 0b00000000;
+    DDRC = 0b00000001;
+    PORTC = 0b00000000;
     fprintf(&uart_str, "%s\r\n", descr);
 }
 
@@ -125,8 +141,24 @@ static uint16_t adc_warmup_wait_read()
     return adc_read_result_16();
 }
 
+static uint16_t adc_wait_read_128()
+{
+    adc_enable_start_conversion__div_2();
+    adc_wait_convertion();
+    uint16_t val = adc_read_result_16();
+    uint8_t cnt = 128;
+    while(cnt--) {
+        adc_enable_start_conversion__div_2();
+        adc_wait_convertion();
+        val += adc_read_result_16();
+        val /= 2;
+    }
+    return val;
+}
+
 static void f0_adc_read(const char* descr)
 {
+    DDRC = 0b00000000;
     adc_set_src_adc0__ref_vcc_with_cap_at_aref_pin();
     uint16_t val = adc_warmup_wait_read();
     adc_release();
@@ -167,8 +199,9 @@ static void f0_gpio_time(const char* descr)
             , !!(PIND & 0b00010000));
 }
 
-static void f0_cpu_clock_test()
+static void f0_cpu_clock_test(const char* descr)
 {
+    fprintf(&uart_str, "%s\r\n", descr);
     fprintf(&uart_str, "CPU 31250 Hz 5s\r\n"); //3.3v0.15ma,5v9.9ma
     _delay_ms(5);
     cpu_clock_div_set(0b00001000);
@@ -189,6 +222,74 @@ static void f0_cpu_clock_test()
     fprintf(&uart_str, "CPU done\r\n\r\n");
 }
 
+static void charge_loop()
+{
+    uint16_t cnt = 0;
+    while(1) {
+        DDRC = 0b00000001;
+        PORTC = 0b00000001;
+        sleep_cpu();
+        if(UCSR0A & (1 << RXC0)) {
+            break;
+        }
+        PORTC = 0b00000000;
+        DDRC = 0b00000000;
+        _delay_ms(100);
+        adc_set_src_adc0__ref_vcc_with_cap_at_aref_pin();
+        uint16_t val = adc_wait_read_128();
+        adc_release();
+        if(val > 980) {
+            fprintf(&uart_str, "%s %d: %u\r\n", __func__, cnt, val);
+            break;
+        }
+        cnt ++;
+    }
+}
+
+static void discharge_loop()
+{
+    uint16_t cnt = 0;
+    while(1) {
+        DDRC = 0b00000001;
+        PORTC = 0b00000000;
+        sleep_cpu();
+        if(UCSR0A & (1 << RXC0))
+            break;
+        PORTC = 0b00000000;
+        DDRC = 0b00000000;
+        _delay_ms(100);
+        adc_set_src_adc0__ref_vcc_with_cap_at_aref_pin();
+        uint16_t val = adc_wait_read_128();
+        adc_release();
+        if(val < 10) {
+            fprintf(&uart_str, "%s %d: %u\r\n", __func__, cnt, val);
+            break;
+        }
+        cnt ++;
+    }
+}
+
+static void f0_cap_train(const char* descr)
+{
+    int cnt = 0;
+    fprintf(&uart_str, "Start %s\r\n", descr);
+    while(1) {
+        discharge_loop();
+        if(UCSR0A & (1 << RXC0))
+            break;
+        charge_loop();
+        if(UCSR0A & (1 << RXC0))
+            break;
+        fprintf(&uart_str, "%s %d\r\n", descr, cnt);
+        cnt ++;
+    }
+    adc_release();
+    PORTC = 0b00000000;
+    DDRC = 0b00000000;
+    fprintf(&uart_str, "End %s %d\r\n", descr, cnt);
+}
+
+
 static void f0_menu(uint8_t ch)
 {
     struct {
@@ -202,6 +303,7 @@ static void f0_menu(uint8_t ch)
         {"Temp. read",  f0_temp_read},
         {"GPIO dU/dT",  f0_gpio_time},
         {"Clock test",  f0_cpu_clock_test},
+        {"Cap train",   f0_cap_train},
     };
 
     if(ch < 'a' || ch >= 'a' + sizeof(menu) / sizeof(menu[0])) {
@@ -217,7 +319,7 @@ static void f0_menu(uint8_t ch)
     menu[ch].proc(menu[ch].descr);
 }
 
-static uint8_t sys_wait_event()
+static uint8_t sys_wait_key_press()
 {
     do {
         sleep_cpu();
@@ -229,7 +331,7 @@ int main(void)
 {
     sys_init();
     while(1) {
-        f0_menu(sys_wait_event());
+        f0_menu(sys_wait_key_press());
     }
     return 0;
 }
