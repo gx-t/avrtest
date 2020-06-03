@@ -184,10 +184,10 @@ int main(void) {
     pwm_enable();
 
     while(1) {
+        sys_sleep();
         effect_0();
         effect_1();
         effect_2();
-        sys_sleep();
     }
 
     return 0;
