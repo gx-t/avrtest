@@ -8,7 +8,7 @@
 /*
     Solar cell + ultracapacitor powered LED beacon
 
-    ATTINY85
+    ATTINY13V
     PB0 - LED0
     PB1 - LED1
     PB3 - LED2
@@ -46,6 +46,13 @@ static void wdt_sleep_2s()
 {
     WDTCR = 0b00011000;
     WDTCR = 0b01001111;
+    sleep_cpu();
+}
+
+static void wdt_sleep_1s()
+{
+    WDTCR = 0b00011000;
+    WDTCR = 0b01001110;
     sleep_cpu();
 }
 
