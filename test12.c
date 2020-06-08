@@ -7,14 +7,17 @@
 #define F_CPU 8000000UL
 #include <util/delay.h>
 
-// Non-arduino and arduino code example for NRF24L01_PA_LNA
-// http://www.hotmcu.com/wiki/NRF24L01_PA_LNA_Wireless_Module
+/*
+Non-arduino and arduino code example for NRF24L01_PA_LNA
+http://www.hotmcu.com/wiki/NRF24L01_PA_LNA_Wireless_Module
 
-// NRF24L01_PA_LNA in-depth explanation
-// https://lastminuteengineers.com/nrf24l01-arduino-wireless-communication/
+NRF24L01_PA_LNA in-depth explanation
+https://lastminuteengineers.com/nrf24l01-arduino-wireless-communication/
 
-// https://embedds.com/programming-avr-i2c-interface/
-// https://github.com/knightshrub/I2C-master-lib
+https://embedds.com/programming-avr-i2c-interface/
+https://github.com/knightshrub/I2C-master-lib
+https://embedds.com/programming-avr-i2c-interface/
+*/
 
 /*
     ATMEGA328P
