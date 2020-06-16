@@ -2,6 +2,7 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <avr/wdt.h>
+#include <util/twi.h>
 #include <stdio.h>
 
 #define F_CPU 8000000UL
@@ -301,6 +302,110 @@ static void f0_cap_train(const char* descr)
     fprintf(&uart_str, "End %s %d\r\n", descr, cnt);
 }
 
+static void twi_init_400khz()
+{
+    TWSR = 0x00;
+    TWBR = 0x0C;
+    TWCR = (1 << TWEN);
+}
+
+static void twi_wait_complete()
+{
+    while(!(TWCR & (1 << TWINT)));
+}
+
+static void twi_send_start()
+{
+    TWCR = (1 << TWINT) | (1 << TWSTA) | (1 << TWEN);
+    twi_wait_complete();
+}
+
+static void twi_send_stop()
+{
+    TWCR = (1 << TWINT) | (1 << TWSTO) | (1 << TWEN);
+}
+
+static void twi_write(uint8_t data)
+{
+    TWDR = data;
+    TWCR = (1 << TWINT) | (1 << TWEN);
+    twi_wait_complete();
+}
+
+static uint8_t twi_read_ack()
+{
+    TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWEA);
+    twi_wait_complete();
+    return TWDR;
+}
+
+static uint8_t twi_read_nack()
+{
+    TWCR = (1 << TWINT) | (1 << TWEN);
+    twi_wait_complete();
+    return TWDR;
+}
+
+static uint8_t twi_get_status()
+{
+    return TWSR & 0xF8;
+}
+
+static uint8_t i2c_read_reg(uint8_t dev_addr, uint8_t reg_addr, uint8_t* data, uint8_t len)
+{
+    uint8_t res = 1;
+    twi_send_start();
+
+    if(TW_START != twi_get_status())
+        return res;
+
+    twi_write(dev_addr);
+    if(TW_MT_SLA_ACK != twi_get_status())
+        goto stop;
+
+    twi_write(reg_addr);
+    if(TW_MT_DATA_ACK != twi_get_status())
+        goto stop;
+
+    twi_send_start();
+    if(TW_REP_START != twi_get_status())
+        goto stop;
+
+    twi_write(dev_addr | 1);
+    if(TW_MR_SLA_ACK != twi_get_status())
+        goto stop;
+
+    while(-- len) {
+        *data ++ = twi_read_ack();
+        if(TW_MR_DATA_ACK != twi_get_status()) {
+            goto stop;
+        }
+    }
+
+    *data = twi_read_nack();
+    if(TW_MR_DATA_NACK != twi_get_status())
+        goto stop;
+
+    res = 0;
+
+stop:
+    twi_send_stop();
+    return res;
+}
+
+#define LM75_ADDR       0x90
+
+static void f0_lm75_read(const char* descr)
+{
+    int8_t temp[2];
+
+    if(i2c_read_reg(LM75_ADDR, 0, (uint8_t*)&temp, sizeof(temp))) {
+        fprintf(&uart_str, "Error reading register 0\r\n");
+        return;
+    }
+
+    fprintf(&uart_str, "%s: %d\r\n", descr, temp[0]);
+}
 
 static void f0_menu(uint8_t ch)
 {
@@ -316,6 +421,7 @@ static void f0_menu(uint8_t ch)
         {"GPIO dU/dT",  f0_gpio_time},
         {"Clock test",  f0_cpu_clock_test},
         {"Cap train",   f0_cap_train},
+        {"LM75 read",   f0_lm75_read},
     };
 
     if(ch < 'a' || ch >= 'a' + sizeof(menu) / sizeof(menu[0])) {
