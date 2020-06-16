@@ -393,14 +393,53 @@ stop:
     return res;
 }
 
+static uint8_t i2c_write_reg(uint8_t dev_addr, uint8_t reg_addr, uint8_t* data, uint8_t len)
+{
+    uint8_t res = 1;
+    twi_send_start();
+
+    if(TW_START != twi_get_status())
+        return res;
+
+    twi_write(dev_addr);
+    if(TW_MT_SLA_ACK != twi_get_status())
+        goto stop;
+
+    twi_write(reg_addr);
+    if(TW_MT_DATA_ACK != twi_get_status())
+        goto stop;
+
+    while(len --) {
+        twi_write(*data ++);
+        if(TW_MT_DATA_ACK != twi_get_status()) {
+            goto stop;
+        }
+    }
+
+    res = 0;
+
+stop:
+    twi_send_stop();
+    return res;
+}
+
 #define LM75_ADDR       0x90
 
 static void f0_lm75_read(const char* descr)
 {
     int8_t temp[2];
-
-    if(i2c_read_reg(LM75_ADDR, 0, (uint8_t*)&temp, sizeof(temp))) {
-        fprintf(&uart_str, "Error reading register 0\r\n");
+    uint8_t cfg = 0b00000000; //wake up
+    if(i2c_write_reg(LM75_ADDR, 1, &cfg, sizeof(cfg))) {
+        fprintf(&uart_str, "Error wakeup\r\n");
+        return;
+    }
+    if(i2c_read_reg(LM75_ADDR, 0, (uint8_t*)temp, sizeof(temp))) {
+        fprintf(&uart_str, "Error reading temperature\r\n");
+        return;
+    }
+    cfg = 0b00000001; //shut down
+    if(i2c_write_reg(LM75_ADDR, 1, &cfg, sizeof(cfg))) {
+        fprintf(&uart_str, "Error shutdown\r\n");
         return;
     }
 
