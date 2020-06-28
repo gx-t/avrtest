@@ -191,25 +191,29 @@ static void f0_gpio_time(const char* descr)
     DDRD = 0b00010000;
     PORTD = 0b00000000;
     DDRD = 0b00000000;
-    PORTD = 0b00010000;
-//    __asm__ __volatile__("nop");
-    fprintf(&uart_str, "%s %d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d\r\n", descr
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000)
-            , !!(PIND & 0b00010000));
+//    PORTD = 0b00010000;
+    PORTD = 0b00000000;
+    uint8_t i = 255;
+    while(i-- && !(PIND & 0b00010000));
+
+    fprintf(&uart_str, "%s %d\r\n", descr, i);
+//    fprintf(&uart_str, "%s %d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d\r\n", descr
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000)
+//            , !!(PIND & 0b00010000));
 }
 
 static void f0_cpu_clock_test(const char* descr)
@@ -427,54 +431,31 @@ stop:
 
 static void f0_lm75_read(const char* descr)
 {
-    int8_t temp[2];
+    uint8_t buff[2];
     uint8_t cfg = 0b00000000; //wake up
     if(i2c_write_reg(LM75_ADDR, 1, &cfg, sizeof(cfg))) {
         fprintf(&uart_str, "Error wakeup\r\n");
         return;
     }
-    if(i2c_read_reg(LM75_ADDR, 0, (uint8_t*)temp, sizeof(temp))) {
+//    _delay_ms(500);
+    if(i2c_read_reg(LM75_ADDR, 0, buff, sizeof(buff))) {
         fprintf(&uart_str, "Error reading temperature\r\n");
         return;
     }
-    cfg = 0b00000001; //shut down
-    if(i2c_write_reg(LM75_ADDR, 1, &cfg, sizeof(cfg))) {
-        fprintf(&uart_str, "Error shutdown\r\n");
-        return;
-    }
+//    cfg = 0b00000001; //shut down
+//    if(i2c_write_reg(LM75_ADDR, 1, &cfg, sizeof(cfg))) {
+//        fprintf(&uart_str, "Error shutdown\r\n");
+//        return;
+//    }
 
-    fprintf(&uart_str, "%s: %d\r\n", descr, temp[0]);
+    int16_t temp = buff[0] << 8 | buff[1];
+    fprintf(&uart_str, "%s: %d\r\n", descr, temp / 256);
 }
 
-static void f0_menu(uint8_t ch)
-{
-    struct {
-        char* descr;
-        void (*proc)();
-    } menu[] = {
-        {"VCC read",    f0_vcc_read},
-        {"GPIO set",    f0_gpio_set},
-        {"GPIO unset",  f0_gpio_unset},
-        {"ADC read",    f0_adc_read},
-        {"Temp. read",  f0_temp_read},
-        {"GPIO dU/dT",  f0_gpio_time},
-        {"Clock test",  f0_cpu_clock_test},
-        {"Cap train",   f0_cap_train},
-        {"LM75 read",   f0_lm75_read},
-    };
-
-    if(ch < 'a' || ch >= 'a' + sizeof(menu) / sizeof(menu[0])) {
-        fprintf(&uart_str, "\r\nUsage:\r\n");
-        for(uint8_t i = 0; i < sizeof(menu) / sizeof(menu[0]); i ++) {
-            fprintf(&uart_str, "%c: %s\r\n", 'a' + i, menu[i].descr);
-        }
-        fprintf(&uart_str, "\r\n");
-        return;
-    }
-
-    ch -= 'a';
-    menu[ch].proc(menu[ch].descr);
-}
+struct MENU_ITEM {
+    char* descr;
+    void (*proc)();
+};
 
 static uint8_t sys_wait_key_press()
 {
@@ -484,12 +465,57 @@ static uint8_t sys_wait_key_press()
     return UDR0;
 }
 
+static void menu(const char* title, struct MENU_ITEM item_arr[], uint8_t count)
+{
+    fprintf(&uart_str, "\r\n%s.\r\n", title);
+    while(1) {
+        uint8_t ch = sys_wait_key_press();
+        if('q' == ch)
+            break;
+
+        if(ch < 'a' || ch >= 'a' + count) {
+            fprintf(&uart_str, "\r\n%s:\r\n", title);
+            fprintf(&uart_str, "q: leave %s\r\n", title);
+
+            for(uint8_t i = 0; i < count; i ++) {
+                fprintf(&uart_str, "%c: %s\r\n", 'a' + i, item_arr[i].descr);
+            }
+            fprintf(&uart_str, "\r\n");
+            continue;
+        }
+
+        ch -= 'a';
+        item_arr[ch].proc(item_arr[ch].descr);
+    }
+    fprintf(&uart_str, "\r\nLeft %s.\r\n", title);
+}
+static void f0_level_1(const char* descr)
+{
+    struct MENU_ITEM f1_menu[] = {
+    };
+    menu(descr, f1_menu, sizeof(f1_menu) / sizeof(f1_menu[0]));
+}
+
 int main(void)
 {
+    struct MENU_ITEM f0_menu[] = {
+        {"VCC read",    f0_vcc_read},
+        {"GPIO set",    f0_gpio_set},
+        {"GPIO unset",  f0_gpio_unset},
+        {"ADC read",    f0_adc_read},
+        {"Temp. read",  f0_temp_read},
+        {"GPIO dU/dT",  f0_gpio_time},
+        {"Clock test",  f0_cpu_clock_test},
+        {"Cap train",   f0_cap_train},
+        {"LM75 read",   f0_lm75_read},
+        {"Level 1",     f0_level_1},
+    };
+
     sys_init();
-    while(1) {
-        f0_menu(sys_wait_key_press());
-    }
+
+    while(1)
+        menu("Level 0", f0_menu, sizeof(f0_menu) / sizeof(f0_menu[0]));
+
     return 0;
 }
 

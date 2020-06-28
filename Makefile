@@ -1,5 +1,5 @@
-all:
-	@echo "make testxx"
+none:
+	@echo "run make XX"
 00:
 	avr-gcc -mmcu=attiny2313 -Wall -Werror -Os -s test00.c -o test00.elf
 	avr-objcopy -j .text -j .data -O ihex test00.elf test00.hex
