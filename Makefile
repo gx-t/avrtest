@@ -73,7 +73,7 @@ none:
 	avrdude -c USBASP -p t13 -U flash:w:test11.hex -U lfuse:w:0x7a:m -U hfuse:w:0xff:m
 
 12:
-	avr-gcc -mmcu=atmega328p -Wno-unused-function -Wall -Werror -Os -s test12.c -o test12.elf
+	avr-gcc -std=c99 -mmcu=atmega328p -Wno-unused-function -Wall -Werror -Os -s test12.c -o test12.elf
 	avr-objcopy -j .text -j .data -O ihex test12.elf test12.hex
 	rm *.elf
 	avrdude -c USBASP -p m328p -U flash:w:test12.hex -U lfuse:w:0xe2:m -U hfuse:w:0xd9:m -U efuse:w:0xff:m

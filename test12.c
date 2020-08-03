@@ -74,7 +74,8 @@ static void spi_init()
 {
     DDRB = 0b101100;
     spi_chip_disable();
-    SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPI2X); //enable SPI-master, clock/2 speed
+    SPSR = SPI2X; //clk / 2
+    SPCR = (1 << SPE) | (1 << MSTR);
 }
 
 static void spi_wait_write()
@@ -84,8 +85,8 @@ static void spi_wait_write()
 
 static uint8_t spi_read_reg(uint8_t reg)
 {
-    SPDR = reg;
     spi_chip_enable();
+    SPDR = reg;
     spi_wait_write();
     SPDR = 0;
     spi_wait_write();
