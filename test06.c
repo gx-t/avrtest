@@ -34,6 +34,9 @@ static void spi_init()
 {
     DDRB = 0b00101111; //output CLK, MOSI, SS, LCD-DC, LCD-RST
     SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPI2X); //enable SPI-master, clock/2 speed
+    //TODO: Wrong initialzation! Use this for fast SPI:
+    //SPSR = SPI2X; //clk / 2
+    //SPCR = (1 << SPE) | (1 << MSTR);
 }
 
 static void spi_wait_write()

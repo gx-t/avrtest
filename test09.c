@@ -74,6 +74,9 @@ static void spi_init()
 {
     DDRB = LORA_RST | LORA_NSS | SPI_MOSI | SPI_SCK;
     SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPI2X); //enable SPI-master, clock/2 speed
+    //TODO: Wrong initialzation! Use this for fast SPI:
+    //SPSR = SPI2X; //clk / 2
+    //SPCR = (1 << SPE) | (1 << MSTR);
     PORTB |= LORA_NSS;
 }
 
