@@ -60,6 +60,45 @@ static FILE uart_str = {
     .flags = _FDEV_SETUP_WRITE
 };
 
+static void spi_chip_enable()
+{
+    PORTB &= ~0b100;
+}
+
+static void spi_chip_disable()
+{
+    PORTB |= 0b100;
+}
+
+static void spi_init()
+{
+    DDRB = 0b101100;
+    spi_chip_disable();
+    SPCR = (1 << SPE) | (1 << MSTR) | (1 << SPI2X); //enable SPI-master, clock/2 speed
+}
+
+static void spi_wait_write()
+{
+    while(!(SPSR & (1 << SPIF)));
+}
+
+static uint8_t spi_read_reg(uint8_t reg)
+{
+    SPDR = reg;
+    spi_chip_enable();
+    spi_wait_write();
+    SPDR = 0;
+    spi_wait_write();
+    spi_chip_disable();
+    return SPDR;
+}
+
+static void spi_print_reg(uint8_t reg)
+{
+    uint8_t val = spi_read_reg(reg);
+    fprintf(&uart_str, "REG %02X=%02X\r\n", reg, val);
+}
+
 static void gpio_enable_reset_pullup()
 {
     PORTC = 0b01000000;
@@ -92,6 +131,7 @@ static void sys_init()
     sleep_enable();
     gpio_enable_reset_pullup();
     uart_init();
+    spi_init();
     wdt_reset();
     wdt_set_2s();
     sei();
@@ -452,6 +492,13 @@ static void f0_lm75_read(const char* descr)
     fprintf(&uart_str, "%s: %d\r\n", descr, temp / 256);
 }
 
+static void f1_si4432_transmit(const char* descr)
+{
+    spi_print_reg(0x00);
+    spi_print_reg(0x01);
+    spi_print_reg(0x02);
+}
+
 struct MENU_ITEM {
     char* descr;
     void (*proc)();
@@ -489,9 +536,11 @@ static void menu(const char* title, struct MENU_ITEM item_arr[], uint8_t count)
     }
     fprintf(&uart_str, "\r\nLeft %s.\r\n", title);
 }
+
 static void f0_level_1(const char* descr)
 {
     struct MENU_ITEM f1_menu[] = {
+        {"Si4432 transmit", f1_si4432_transmit},
     };
     menu(descr, f1_menu, sizeof(f1_menu) / sizeof(f1_menu[0]));
 }
