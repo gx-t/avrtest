@@ -72,7 +72,7 @@ static void spi_chip_disable()
 
 static void spi_init()
 {
-    DDRB = 0b101100;
+    DDRB = 0b101101;
     spi_chip_disable();
     SPSR = SPI2X; //clk / 2
     SPCR = (1 << SPE) | (1 << MSTR);
