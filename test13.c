@@ -104,6 +104,7 @@ static uint8_t si4432_init()
         fprintf(&uart_str, "Unsupported device version\r\n");
         return 1;
     }
+    fprintf(&uart_str, "%s, OK\r\n", __func__);
     return 0;
 }
 
