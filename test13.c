@@ -43,6 +43,17 @@ static FILE uart_str = {
 static void gpio_init()
 {
     DDRB = 0b101101;
+    DDRD |= 0b10000000;
+}
+
+static void led_on()
+{
+    PORTD |= 0b10000000;
+}
+
+static void led_off()
+{
+    PORTD &= ~0b10000000;
 }
 
 static void spi_init()
@@ -171,6 +182,7 @@ static uint8_t si4432_init()
 static void si4432_tx()
 {
     fprintf(&uart_str, "TX start\r\n");
+    led_on();
     /*SET THE CONTENT OF THE PACKET*/
     //set the length of the payload to 8bytes	
     spi_write_reg(0x3E, 8);
@@ -210,6 +222,7 @@ static void si4432_tx()
     spi_read_reg(0x04);
 
     fprintf(&uart_str, "TX end\r\n");
+    led_off();
 }
 
 static void si4432_set_freq_433_92_low_side()
