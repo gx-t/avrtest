@@ -16,6 +16,55 @@
 #define USART_BAUD 38400UL
 #define USART_UBBR_VALUE ((F_CPU / (USART_BAUD << 4)) - 1)
 
+
+static void cpu_set_freq_8M()
+{
+    cli();
+    CLKPR = 0x80;
+    CLKPR = 0x00;
+    sei();
+}
+
+static void cpu_set_freq_1M()
+{
+    cli();
+    CLKPR = 0x80;
+    CLKPR = 0x03;
+    sei();
+}
+
+static void wdt_init()
+{
+    wdt_reset();
+    WDTCSR = 0b00011000;
+    WDTCSR = 0b01000111;
+}
+
+ISR(WDT_vect)
+{
+}
+
+static void wdt_sleep_2s()
+{
+    WDTCSR = 0b00011000;
+    WDTCSR = 0b01000111;
+    sleep_cpu();
+}
+
+static void wdt_sleep_1s()
+{
+    WDTCSR = 0b00011000;
+    WDTCSR = 0b01000110;
+    sleep_cpu();
+}
+
+static void wdt_sleep_64ms()
+{
+    WDTCSR = 0b00011000;
+    WDTCSR = 0b01000011;
+    sleep_cpu();
+}
+
 static void uart_init() {
     UBRR0 = USART_UBBR_VALUE;
     UCSR0A = 0;
@@ -114,74 +163,79 @@ static void si4432_disable()
     PORTB |= 0b00000001;
 }
 
-static uint8_t si4432_init()
+static void si4432_reset()
 {
-    si4432_disable();
-    _delay_ms(20);
-    si4432_enable();
-    _delay_ms(100); //20 ms is not enough!
+    spi_write_reg(0x07, 0x80);
+}
 
-    //read interrupt status registers to clear the interrupt flags and release NIRQ pin
-    spi_read_reg(0x03); //read the Interrupt Status1 register
-    spi_read_reg(0x04); //read the Interrupt Status2 register
+static void si4432_clear_interrupt_flags()
+{
+    spi_read_reg(0x03);
+    spi_read_reg(0x04);
+}
 
-    //SW reset   
-    spi_write_reg(0x07, 0b10000000);
+static void si4432_set_freq_433_92_low_side()
+{
+    spi_write_reg(0x75, 0x53);
+    spi_write_reg(0x76, 0x62);
+    spi_write_reg(0x77, 0x00);
+}
 
-    while(PINB & 0b10);
-
-    //read interrupt status registers to clear the interrupt flags and release NIRQ pin
-    spi_read_reg(0x03); //read the Interrupt Status1 register
-    spi_read_reg(0x04); //read the Interrupt Status2 register
-
-    //set the center frequency to 915 MHz
+static void si4432_set_freq_915_low_side()
+{
     spi_write_reg(0x75, 0x75);        
     spi_write_reg(0x76, 0xBB);
     spi_write_reg(0x77, 0x80);
+}
 
-    //set the desired TX data rate (9.6kbps)
+static void si4432_set_tx_data_rate_9_6k()
+{
     spi_write_reg(0x6E, 0x4E);
     spi_write_reg(0x6F, 0xA5);
     spi_write_reg(0x70, 0x2C);
+}
 
-    //set the desired TX deviatioin (+-45 kHz)
+static void si4432_set_tx_data_rate_123b()
+{
+    spi_write_reg(0x6E, 0x01);
+    spi_write_reg(0x6F, 0x02);
+    spi_write_reg(0x70, 0x2C);
+}
+
+static void si4432_set_tx_deviation_45k()
+{
     spi_write_reg(0x72, 0x48);
+}
 
-    //set the preamble length to 5bytes  
-    spi_write_reg(0x34, 0x0A);
+static void si4432_set_tx_deviation_625b()
+{
+    spi_write_reg(0x72, 0x01);
+}
 
-    //Disable header bytes; set variable packet length (the length of the payload is defined by the
-    //received packet length field of the packet); set the synch word to two bytes long
-    spi_write_reg(0x33, 0x02 );
-
-    //Set the sync word pattern to 0x2DD4
-    spi_write_reg(0x36, 0x2D);
-    spi_write_reg(0x37, 0xD4);
-
-	//enable the TX packet handler and CRC-16 (IBM) check
-	spi_write_reg(0x30, 0x0D);
-	//enable FIFO mode and GFSK modulation
-	spi_write_reg(0x71, 0x63);
-
-    /*Set the GPIO's to control the RF switch*/
+static void si4432_set_rf_switch_gpio1_tx_gpio2_rx()
+{
     spi_write_reg(0x0C, 0x12);
     spi_write_reg(0x0D, 0x15);
+}
 
-							/*set the non-default Si4432 registers*/
-	//set VCO and PLL
-	spi_write_reg(0x5A, 0x7F);
-	spi_write_reg(0x59, 0x40);
+static void si4432_set_tx_power_20dbm()
+{
+    spi_write_reg(0x6D, 0x0F);
+}
 
-	//set Crystal Oscillator Load Capacitance register
-	spi_write_reg(0x09, 0xD7);
+static void si4432_enable_fifo_and_gfsk()
+{
+	spi_write_reg(0x71, 0x63);
+}
 
-    fprintf(&uart_str, "%s\r\n", __func__);
-    return 0;
+static void si4432_disable_all_interrupts()
+{
+    spi_write_reg(0x05, 0x00);
+    spi_write_reg(0x06, 0x00);
 }
 
 static void si4432_tx()
 {
-    fprintf(&uart_str, "TX start\r\n");
     led_on();
     /*SET THE CONTENT OF THE PACKET*/
     //set the length of the payload to 8bytes	
@@ -198,58 +252,85 @@ static void si4432_tx()
 
     //Disable all other interrupts and enable the packet sent interrupt only.
     //This will be used for indicating the successfull packet transmission for the MCU
-    spi_write_reg(0x05, 0x04);
-    spi_write_reg(0x06, 0x00);
-    //Read interrupt status regsiters. It clear all pending interrupts and the nIRQ pin goes back to high.
-    spi_read_reg(0x03);
-    spi_read_reg(0x04);
+//    spi_write_reg(0x05, 0x04);
+//    spi_write_reg(0x06, 0x00);
+//
+//    si4432_clear_interrupt_flags();
 
     /*enable transmitter*/
     //The radio forms the packet and send it automatically.
     spi_write_reg(0x07, 0x09);
 
     //enable the packet sent interupt only
-    spi_write_reg(0x05, 0x04);
-    //read interrupt status to clear the interrupt flags
-    spi_read_reg(0x03);
-    spi_read_reg(0x04);
+//    spi_write_reg(0x05, 0x04);
+
+//    si4432_clear_interrupt_flags();
 
     /*wait for the packet sent interrupt*/
     //The MCU just needs to wait for the 'ipksent' interrupt.
-    while(PINB & 0x10);
-    //read interrupt status registers to release the interrupt flags
-    spi_read_reg(0x03);
-    spi_read_reg(0x04);
+//    while(PINB & 0x10);
+//    si4432_clear_interrupt_flags();
+    while(8 & spi_read_reg(0x07))
+        wdt_sleep_64ms();
 
-    fprintf(&uart_str, "TX end\r\n");
     led_off();
 }
 
-static void si4432_set_freq_433_92_low_side()
+static uint8_t si4432_init()
 {
-    //fb[4:0] = 19 (430–439.9 MHz)
-    //433.92 = fo = 8, fb[4:0] = 19, fc = 0x09CC, hbsel = 0;
-    //sbsel = 1 low-side injection
+    si4432_enable();
+    wdt_sleep_64ms();
 
-    spi_write_reg(0x73, 0x08);
-    spi_write_reg(0x75, 0b01010011);
-    spi_write_reg(0x76, 0x09);
-    spi_write_reg(0x77, 0xCC);
-    spi_print_reg(0x07);
-    spi_print_reg(0x73);
-    spi_print_reg(0x75);
-    spi_print_reg(0x76);
-    spi_print_reg(0x77);
-}
+    si4432_clear_interrupt_flags();
+    si4432_reset();
+    si4432_disable_all_interrupts();
+    si4432_clear_interrupt_flags();
 
-static void si4432_tx_on()
-{
-    spi_write_reg(0x07, 0b1000);
+    while(PINB & 0b10);
+
+    si4432_set_freq_433_92_low_side();
+    si4432_set_tx_data_rate_123b();
+//    si4432_set_tx_data_rate_9_6k();
+//    si4432_set_tx_deviation_45k();
+    si4432_set_tx_deviation_625b();
+    si4432_set_tx_power_20dbm();
+
+    //set the preamble length to 5bytes  
+    spi_write_reg(0x34, 0x0A);
+
+    //Disable header bytes; set variable packet length (the length of the payload is defined by the
+    //received packet length field of the packet); set the synch word to two bytes long
+    spi_write_reg(0x33, 0x02);
+
+    //Set the sync word pattern to 0x2DD4
+    spi_write_reg(0x36, 0x2D);
+    spi_write_reg(0x37, 0xD4);
+
+	//enable the TX packet handler and CRC-16 (IBM) check
+	spi_write_reg(0x30, 0x0D);
+    si4432_enable_fifo_and_gfsk();
+
+    si4432_set_rf_switch_gpio1_tx_gpio2_rx();
+
+							/*set the non-default Si4432 registers*/
+	//set VCO and PLL
+	spi_write_reg(0x5A, 0x7F);
+	spi_write_reg(0x59, 0x40);
+
+	//set Crystal Oscillator Load Capacitance register
+	spi_write_reg(0x09, 0xD7);
+
+    return 0;
 }
 
 static void sys_init()
 {
     cli();
+    CLKPR = 0x80;
+    CLKPR = 0x00;
+    set_sleep_mode(SLEEP_MODE_IDLE);
+    sleep_enable();
+    wdt_reset();
     uart_init();
     gpio_init();
     spi_init();
@@ -259,10 +340,14 @@ static void sys_init()
 int main()
 {
     sys_init();
-    si4432_init();
+    si4432_disable();
+    wdt_sleep_64ms();
     while(1) {
+        si4432_init();
         si4432_tx();
-        _delay_ms(1000);
+        spi_print_reg(0x07);
+        si4432_disable();
+        wdt_sleep_2s();
     }
 
     return 0;
