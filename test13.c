@@ -61,14 +61,21 @@ static void wdt_sleep_1s()
 static void wdt_sleep_64ms()
 {
     WDTCSR = 0b00011000;
-    WDTCSR = 0b01000011;
+    WDTCSR = 0b01000010;
+    sleep_cpu();
+}
+
+static void wdt_sleep_32ms()
+{
+    WDTCSR = 0b00011000;
+    WDTCSR = 0b01000001;
     sleep_cpu();
 }
 
 static void uart_init() {
     UBRR0 = USART_UBBR_VALUE;
     UCSR0A = 0;
-    UCSR0B = (1 << RXEN0) | (1 << TXEN0) | (1 << RXCIE0);
+    UCSR0B = (1 << TXEN0);
     //8 data bits, 1 stop bit
     UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
 }
@@ -103,6 +110,20 @@ static void led_on()
 static void led_off()
 {
     PORTD &= ~0b10000000;
+}
+
+static void led_flash_1()
+{
+    led_on();
+    wdt_sleep_32ms();
+    led_off();
+}
+
+static void led_flash_2()
+{
+    led_flash_1();
+    wdt_sleep_64ms();
+    led_flash_1();
 }
 
 static void spi_init()
@@ -218,6 +239,17 @@ static void si4432_set_rf_switch_gpio1_tx_gpio2_rx()
     spi_write_reg(0x0D, 0x15);
 }
 
+static void si4432_set_rf_switch_gpio0_tx_gpio1_rx()
+{
+    spi_write_reg(0x0B, 0x12);
+    spi_write_reg(0x0C, 0x15);
+}
+
+static void si4432_set_tx_power_n1dbm()
+{
+    spi_write_reg(0x6D, 0x00);
+}
+
 static void si4432_set_tx_power_20dbm()
 {
     spi_write_reg(0x6D, 0x0F);
@@ -234,21 +266,24 @@ static void si4432_disable_all_interrupts()
     spi_write_reg(0x06, 0x00);
 }
 
+static void si4432_fill_tx_fifo(const uint8_t* data, uint8_t cnt)
+{
+    spi_write_reg(0x3E, cnt);
+    spi_chip_enable();
+    SPDR = 0x7F | 0x80;
+    spi_wait_write();
+    while(cnt--) {
+        SPDR = *data ++;
+        spi_wait_write();
+    }
+    spi_chip_disable();
+}
+
 static void si4432_tx()
 {
-    led_on();
-    /*SET THE CONTENT OF THE PACKET*/
-    //set the length of the payload to 8bytes	
-    spi_write_reg(0x3E, 8);
-    //fill the payload into the transmit FIFO
-    spi_write_reg(0x7F, 0x42);
-    spi_write_reg(0x7F, 0x55);
-    spi_write_reg(0x7F, 0x54);
-    spi_write_reg(0x7F, 0x54);
-    spi_write_reg(0x7F, 0x4F);
-    spi_write_reg(0x7F, 0x4E);
-    spi_write_reg(0x7F, 0x31);
-    spi_write_reg(0x7F, 0x0D);
+    led_flash_1();
+    const uint8_t data[] = "\x55\x55\x55\x55";
+    si4432_fill_tx_fifo(data, 4);
 
     //Disable all other interrupts and enable the packet sent interrupt only.
     //This will be used for indicating the successfull packet transmission for the MCU
@@ -273,13 +308,13 @@ static void si4432_tx()
     while(8 & spi_read_reg(0x07))
         wdt_sleep_64ms();
 
-    led_off();
+    led_flash_2();
 }
 
 static uint8_t si4432_init()
 {
     si4432_enable();
-    wdt_sleep_64ms();
+    wdt_sleep_32ms();
 
     si4432_clear_interrupt_flags();
     si4432_reset();
@@ -293,7 +328,8 @@ static uint8_t si4432_init()
 //    si4432_set_tx_data_rate_9_6k();
 //    si4432_set_tx_deviation_45k();
     si4432_set_tx_deviation_625b();
-    si4432_set_tx_power_20dbm();
+//    si4432_set_tx_power_20dbm();
+    si4432_set_tx_power_n1dbm();
 
     //set the preamble length to 5bytes  
     spi_write_reg(0x34, 0x0A);
@@ -310,7 +346,7 @@ static uint8_t si4432_init()
 	spi_write_reg(0x30, 0x0D);
     si4432_enable_fifo_and_gfsk();
 
-    si4432_set_rf_switch_gpio1_tx_gpio2_rx();
+    si4432_set_rf_switch_gpio0_tx_gpio1_rx();
 
 							/*set the non-default Si4432 registers*/
 	//set VCO and PLL
@@ -328,9 +364,9 @@ static void sys_init()
     cli();
     CLKPR = 0x80;
     CLKPR = 0x00;
+    wdt_reset();
     set_sleep_mode(SLEEP_MODE_IDLE);
     sleep_enable();
-    wdt_reset();
     uart_init();
     gpio_init();
     spi_init();
@@ -341,7 +377,7 @@ int main()
 {
     sys_init();
     si4432_disable();
-    wdt_sleep_64ms();
+    wdt_sleep_32ms();
     while(1) {
         si4432_init();
         si4432_tx();
