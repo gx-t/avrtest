@@ -209,18 +209,25 @@ static void si4432_set_freq_915_low_side()
     spi_write_reg(0x77, 0x80);
 }
 
-static void si4432_set_tx_data_rate_9_6k()
+static void si4432_set_tx_data_rate_9_6kbs()
 {
     spi_write_reg(0x6E, 0x4E);
     spi_write_reg(0x6F, 0xA5);
-    spi_write_reg(0x70, 0x2C);
+    spi_write_reg(0x70, 0x20);
 }
 
-static void si4432_set_tx_data_rate_123b()
+static void si4432_set_tx_data_rate_1250bs()
+{
+    spi_write_reg(0x6E, 0x0A);
+    spi_write_reg(0x6F, 0x3E);
+    spi_write_reg(0x70, 0x20);
+}
+
+static void si4432_set_tx_data_rate_123bs()
 {
     spi_write_reg(0x6E, 0x01);
     spi_write_reg(0x6F, 0x02);
-    spi_write_reg(0x70, 0x2C);
+    spi_write_reg(0x70, 0x20);
 }
 
 static void si4432_set_tx_deviation_45k()
@@ -245,7 +252,7 @@ static void si4432_set_rf_switch_gpio0_tx_gpio1_rx()
     spi_write_reg(0x0C, 0x15);
 }
 
-static void si4432_set_tx_power_n1dbm()
+static void si4432_set_tx_power_1dbm()
 {
     spi_write_reg(0x6D, 0x00);
 }
@@ -257,7 +264,12 @@ static void si4432_set_tx_power_20dbm()
 
 static void si4432_enable_fifo_and_gfsk()
 {
-	spi_write_reg(0x71, 0x63);
+	spi_write_reg(0x71, 0x23);
+}
+
+static void si4432_enable_unmodulated()
+{
+	spi_write_reg(0x71, 0x00);
 }
 
 static void si4432_disable_all_interrupts()
@@ -266,17 +278,24 @@ static void si4432_disable_all_interrupts()
     spi_write_reg(0x06, 0x00);
 }
 
+static void si4432_set_preample_5_bytes()
+{
+    spi_write_reg(0x34, 0x0A);
+}
+
+static void si4432_set_synch_word_CCCC()
+{
+    spi_write_reg(0x33, 0x01);
+    spi_write_reg(0x36, 0xCC);
+    spi_write_reg(0x37, 0xCC);
+}
+
 static void si4432_fill_tx_fifo(const uint8_t* data, uint8_t cnt)
 {
     spi_write_reg(0x3E, cnt);
-    spi_chip_enable();
-    SPDR = 0x7F | 0x80;
-    spi_wait_write();
     while(cnt--) {
-        SPDR = *data ++;
-        spi_wait_write();
+        spi_write_reg(0x7F, *data ++);
     }
-    spi_chip_disable();
 }
 
 static void si4432_tx()
@@ -299,14 +318,13 @@ static void si4432_tx()
     //enable the packet sent interupt only
 //    spi_write_reg(0x05, 0x04);
 
-//    si4432_clear_interrupt_flags();
 
     /*wait for the packet sent interrupt*/
     //The MCU just needs to wait for the 'ipksent' interrupt.
 //    while(PINB & 0x10);
 //    si4432_clear_interrupt_flags();
     while(8 & spi_read_reg(0x07))
-        wdt_sleep_64ms();
+        wdt_sleep_32ms();
 
     led_flash_2();
 }
@@ -323,32 +341,21 @@ static uint8_t si4432_init()
 
     while(PINB & 0b10);
 
-    si4432_set_freq_433_92_low_side();
-    si4432_set_tx_data_rate_123b();
-//    si4432_set_tx_data_rate_9_6k();
-//    si4432_set_tx_deviation_45k();
-    si4432_set_tx_deviation_625b();
-//    si4432_set_tx_power_20dbm();
-    si4432_set_tx_power_n1dbm();
+    si4432_set_tx_power_20dbm(); //6D
+    si4432_set_tx_data_rate_1250bs(); //6E, 6F, 70
+    si4432_enable_fifo_and_gfsk(); //71
+    si4432_set_tx_deviation_625b(); //72
+    si4432_set_freq_433_92_low_side(); //75, 76, 77
 
-    //set the preamble length to 5bytes  
-    spi_write_reg(0x34, 0x0A);
+    si4432_set_preample_5_bytes();
 
-    //Disable header bytes; set variable packet length (the length of the payload is defined by the
-    //received packet length field of the packet); set the synch word to two bytes long
-    spi_write_reg(0x33, 0x02);
-
-    //Set the sync word pattern to 0x2DD4
-    spi_write_reg(0x36, 0x2D);
-    spi_write_reg(0x37, 0xD4);
+    si4432_set_synch_word_CCCC();
 
 	//enable the TX packet handler and CRC-16 (IBM) check
 	spi_write_reg(0x30, 0x0D);
-    si4432_enable_fifo_and_gfsk();
 
     si4432_set_rf_switch_gpio0_tx_gpio1_rx();
 
-							/*set the non-default Si4432 registers*/
 	//set VCO and PLL
 	spi_write_reg(0x5A, 0x7F);
 	spi_write_reg(0x59, 0x40);
@@ -383,6 +390,7 @@ int main()
         si4432_tx();
         spi_print_reg(0x07);
         si4432_disable();
+        wdt_sleep_2s();
         wdt_sleep_2s();
     }
 
