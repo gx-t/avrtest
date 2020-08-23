@@ -216,23 +216,14 @@ static void si4432_set_tx_data_rate_9_6kbs()
     spi_write_reg(0x70, 0x20);
 }
 
-static void si4432_set_tx_data_rate_1250bs()
-{
-    spi_write_reg(0x6E, 0x0A);
-    spi_write_reg(0x6F, 0x3E);
-    spi_write_reg(0x70, 0x20);
-}
-
-static void si4432_set_tx_data_rate_123bs()
-{
-    spi_write_reg(0x6E, 0x01);
-    spi_write_reg(0x6F, 0x02);
-    spi_write_reg(0x70, 0x20);
-}
-
-static void si4432_set_tx_deviation_45k()
+static void si4432_set_tx_deviation_45khz()
 {
     spi_write_reg(0x72, 0x48);
+}
+
+static void si4432_set_tx_deviation_15khz()
+{
+    spi_write_reg(0x72, 0x18);
 }
 
 static void si4432_set_tx_deviation_625b()
@@ -298,72 +289,62 @@ static void si4432_fill_tx_fifo(const uint8_t* data, uint8_t cnt)
     }
 }
 
-static void si4432_tx()
+static void si4432_enable_tx_handler_and_crc16()
 {
-    led_flash_1();
-    const uint8_t data[] = "\x55\x55\x55\x55";
-    si4432_fill_tx_fifo(data, 4);
-
-    //Disable all other interrupts and enable the packet sent interrupt only.
-    //This will be used for indicating the successfull packet transmission for the MCU
-//    spi_write_reg(0x05, 0x04);
-//    spi_write_reg(0x06, 0x00);
-//
-//    si4432_clear_interrupt_flags();
-
-    /*enable transmitter*/
-    //The radio forms the packet and send it automatically.
-    spi_write_reg(0x07, 0x09);
-
-    //enable the packet sent interupt only
-//    spi_write_reg(0x05, 0x04);
-
-
-    /*wait for the packet sent interrupt*/
-    //The MCU just needs to wait for the 'ipksent' interrupt.
-//    while(PINB & 0x10);
-//    si4432_clear_interrupt_flags();
-    while(8 & spi_read_reg(0x07))
-        wdt_sleep_32ms();
-
-    led_flash_2();
+	spi_write_reg(0x30, 0x0D);
 }
 
-static uint8_t si4432_init()
+static void si4432_set_vco_and_pll()
+{
+	spi_write_reg(0x5A, 0x7F);
+	spi_write_reg(0x59, 0x40);
+}
+
+static void si4432_enable_transmitter()
+{
+    spi_write_reg(0x07, 0x09);
+}
+
+static void si4432_tx_433_92Mhz_15Khz_9_6Kbs(const uint8_t* data, uint8_t len)
 {
     si4432_enable();
     wdt_sleep_32ms();
 
     si4432_clear_interrupt_flags();
     si4432_reset();
-    si4432_disable_all_interrupts();
-    si4432_clear_interrupt_flags();
 
     while(PINB & 0b10);
 
-    si4432_set_tx_power_20dbm(); //6D
-    si4432_set_tx_data_rate_1250bs(); //6E, 6F, 70
-    si4432_enable_fifo_and_gfsk(); //71
-    si4432_set_tx_deviation_625b(); //72
-    si4432_set_freq_433_92_low_side(); //75, 76, 77
+    si4432_disable_all_interrupts();
+    si4432_clear_interrupt_flags();
 
+    si4432_set_freq_433_92_low_side();
+    si4432_set_tx_data_rate_9_6kbs();
+    si4432_set_tx_deviation_15khz();
+    si4432_enable_fifo_and_gfsk();
+	si4432_enable_tx_handler_and_crc16();
     si4432_set_preample_5_bytes();
-
     si4432_set_synch_word_CCCC();
-
-	//enable the TX packet handler and CRC-16 (IBM) check
-	spi_write_reg(0x30, 0x0D);
+    si4432_set_tx_power_20dbm();
 
     si4432_set_rf_switch_gpio0_tx_gpio1_rx();
 
-	//set VCO and PLL
-	spi_write_reg(0x5A, 0x7F);
-	spi_write_reg(0x59, 0x40);
+	si4432_set_vco_and_pll();
 
 	//set Crystal Oscillator Load Capacitance register
 	spi_write_reg(0x09, 0xD7);
 
-    return 0;
+    si4432_fill_tx_fifo(data, len);
+
+    si4432_enable_transmitter();
+
+    if(!(8 & spi_read_reg(0x07)))
+        led_flash_2();
+
+    while(8 & spi_read_reg(0x07));
+
+    led_flash_1();
+    si4432_disable();
 }
 
 static void sys_init()
@@ -382,15 +363,14 @@ static void sys_init()
 
 int main()
 {
+    const uint8_t data[] = {
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF
+    };
     sys_init();
     si4432_disable();
     wdt_sleep_32ms();
     while(1) {
-        si4432_init();
-        si4432_tx();
-        spi_print_reg(0x07);
-        si4432_disable();
-        wdt_sleep_2s();
+        si4432_tx_433_92Mhz_15Khz_9_6Kbs(data, sizeof(data));
         wdt_sleep_2s();
     }
 
