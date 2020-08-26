@@ -6,83 +6,15 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
-#include <avr/wdt.h>
 #include <util/twi.h>
 #include <stdio.h>
 
-#define F_CPU 8000000UL
+#define F_CPU 1000000UL
 #include <util/delay.h>
 
 #define USART_BAUD 38400UL
 #define USART_UBBR_VALUE ((F_CPU / (USART_BAUD << 4)) - 1)
 
-
-static void cpu_set_freq_8M()
-{
-    cli();
-    CLKPR = 0x80;
-    CLKPR = 0x00;
-    sei();
-}
-
-static void cpu_set_freq_1M()
-{
-    cli();
-    CLKPR = 0x80;
-    CLKPR = 0x03;
-    sei();
-}
-
-static void wdt_init()
-{
-    wdt_reset();
-    WDTCSR = 0b00011000;
-    WDTCSR = 0b01000111;
-}
-
-ISR(WDT_vect)
-{
-}
-
-static void wdt_sleep_2s()
-{
-    WDTCSR = 0b00011000;
-    WDTCSR = 0b01000111;
-    sleep_cpu();
-}
-
-static void wdt_sleep_1s()
-{
-    WDTCSR = 0b00011000;
-    WDTCSR = 0b01000110;
-    sleep_cpu();
-}
-
-static void wdt_sleep_64ms()
-{
-    WDTCSR = 0b00011000;
-    WDTCSR = 0b01000010;
-    sleep_cpu();
-}
-
-static void wdt_sleep_32ms()
-{
-    WDTCSR = 0b00011000;
-    WDTCSR = 0b01000001;
-    sleep_cpu();
-}
-
-static void uart_init() {
-    UBRR0 = USART_UBBR_VALUE;
-    UCSR0A = 0;
-    UCSR0B = (1 << TXEN0);
-    //8 data bits, 1 stop bit
-    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
-}
-
-ISR(USART_RX_vect)
-{
-}
 
 static int uart_print_char(char ch, FILE* pf)
 {
@@ -96,76 +28,39 @@ static FILE uart_str = {
     .flags = _FDEV_SETUP_WRITE
 };
 
-static void gpio_init()
-{
-    DDRB = 0b101101;
-    DDRD |= 0b10000000;
-}
-
-static void led_on()
-{
-    PORTD |= 0b10000000;
-}
-
-static void led_off()
-{
-    PORTD &= ~0b10000000;
-}
-
 static void led_flash_1()
 {
-    led_on();
-    wdt_sleep_32ms();
-    led_off();
+    PORTD |= 0b10000000;
+    _delay_ms(32);
+    PORTD &= ~0b10000000;
 }
 
 static void led_flash_2()
 {
     led_flash_1();
-    wdt_sleep_64ms();
+    _delay_ms(64);
     led_flash_1();
-}
-
-static void spi_init()
-{
-    SPSR = SPI2X; //clk / 2
-    SPCR = (1 << SPE) | (1 << MSTR);
-}
-
-static void spi_chip_enable()
-{
-    PORTB &= ~0b00000100;
-}
-
-static void spi_chip_disable()
-{
-    PORTB |= 0b00000100;
-}
-
-static void spi_wait_write()
-{
-    while(!(SPSR & (1 << SPIF)));
 }
 
 static uint8_t spi_read_reg(uint8_t reg)
 {
-    spi_chip_enable();
+    PORTB &= ~0b00000100;
     SPDR = reg;
-    spi_wait_write();
+    while(!(SPSR & (1 << SPIF)));
     SPDR = 0;
-    spi_wait_write();
-    spi_chip_disable();
+    while(!(SPSR & (1 << SPIF)));
+    PORTB |= 0b00000100;
     return SPDR;
 }
 
 static void spi_write_reg(uint8_t reg, uint8_t val)
 {
-    spi_chip_enable();
+    PORTB &= ~0b00000100;
     SPDR = reg | 0x80;
-    spi_wait_write();
+    while(!(SPSR & (1 << SPIF)));
     SPDR = val;
-    spi_wait_write();
-    spi_chip_disable();
+    while(!(SPSR & (1 << SPIF)));
+    PORTB |= 0b00000100;
 }
 
 static void spi_print_reg(uint8_t reg)
@@ -174,93 +69,10 @@ static void spi_print_reg(uint8_t reg)
     fprintf(&uart_str, "REG %02X=%02X\r\n", reg, val);
 }
 
-static void si4432_enable()
-{
-    PORTB &= ~0b00000001;
-}
-
-static void si4432_disable()
-{
-    PORTB |= 0b00000001;
-}
-
-static void si4432_reset()
-{
-    spi_write_reg(0x07, 0x80);
-}
-
-static void si4432_clear_interrupt_flags()
+static void si4432_cleanup_interrupt_status_regs()
 {
     spi_read_reg(0x03);
     spi_read_reg(0x04);
-}
-
-static void si4432_set_freq_433_92_low_side()
-{
-    spi_write_reg(0x75, 0x53);
-    spi_write_reg(0x76, 0x62);
-    spi_write_reg(0x77, 0x00);
-}
-
-static void si4432_set_freq_915_low_side()
-{
-    spi_write_reg(0x75, 0x75);        
-    spi_write_reg(0x76, 0xBB);
-    spi_write_reg(0x77, 0x80);
-}
-
-static void si4432_set_tx_data_rate_9_6kbs()
-{
-    spi_write_reg(0x6E, 0x4E);
-    spi_write_reg(0x6F, 0xA5);
-    spi_write_reg(0x70, 0x20);
-}
-
-static void si4432_set_tx_deviation_45khz()
-{
-    spi_write_reg(0x72, 0x48);
-}
-
-static void si4432_set_tx_deviation_15khz()
-{
-    spi_write_reg(0x72, 0x18);
-}
-
-static void si4432_set_tx_deviation_625b()
-{
-    spi_write_reg(0x72, 0x01);
-}
-
-static void si4432_set_rf_switch_gpio1_tx_gpio2_rx()
-{
-    spi_write_reg(0x0C, 0x12);
-    spi_write_reg(0x0D, 0x15);
-}
-
-static void si4432_set_rf_switch_gpio0_tx_gpio1_rx()
-{
-    spi_write_reg(0x0B, 0x12);
-    spi_write_reg(0x0C, 0x15);
-}
-
-static void si4432_set_tx_power_1dbm()
-{
-    spi_write_reg(0x6D, 0x00);
-}
-
-static void si4432_set_tx_power_20dbm()
-{
-    spi_write_reg(0x6D, 0x0F);
-}
-
-static void si4432_enable_fifo_and_gfsk()
-{
-	spi_write_reg(0x71, 0x23);
-}
-
-static void si4432_enable_unmodulated()
-{
-	spi_write_reg(0x71, 0x00);
 }
 
 static void si4432_disable_all_interrupts()
@@ -269,24 +81,84 @@ static void si4432_disable_all_interrupts()
     spi_write_reg(0x06, 0x00);
 }
 
-static void si4432_set_preample_5_bytes()
+static void si4432_enable_all_interrupts()
+{
+    spi_write_reg(0x05, 0x00);
+    spi_write_reg(0x06, 0x00);
+}
+
+static void si4432_enable_packet_sent_interrupt_only()
+{
+    spi_write_reg(0x05, 0x04);
+    spi_write_reg(0x06, 0x00);
+}
+
+static void si4432_set_freq_433_92Mhz()
+{
+    spi_write_reg(0x75, 0x53);
+    spi_write_reg(0x76, 0x62);
+    spi_write_reg(0x77, 0x00);
+    //fine tuning
+    spi_write_reg(0x73, 0xA0);
+}
+
+static void si4432_set_tx_deviation_15khz()
+{
+    spi_write_reg(0x72, 0x18);
+}
+
+static void si4432_set_rx_deviation_25khz()
+{
+    spi_write_reg(0x72, 0x28);
+}
+
+static void si4432_set_tx_data_rate_9_6kbs()
+{
+    spi_write_reg(0x6E, 0x4E);
+    spi_write_reg(0x6F, 0xA5);
+    spi_write_reg(0x70, 0x2C);
+    spi_write_reg(0x58, 0x80);
+}
+
+static void si4432_set_tx_data_rate_1_24kbs()
+{
+    spi_write_reg(0x6E, 0x0A);
+    spi_write_reg(0x6F, 0x28);
+    spi_write_reg(0x70, 0x2C);
+    spi_write_reg(0x58, 0x80);
+}
+
+static void si4432_set_gpio0_tx_gpio1_rx()
+{
+    spi_write_reg(0x0B, 0x12);
+    spi_write_reg(0x0C, 0x15);
+}
+
+static void si4432_sw_reset()
+{
+    spi_write_reg(0x07, 0x80);
+}
+
+static void si4432_set_modulation_none()
+{
+	spi_write_reg(0x71, 0x00);
+}
+
+static void si4432_set_modulation_gfsk_fifo_mode()
+{
+	spi_write_reg(0x71, 0x23);
+}
+
+static void si4432_set_preamble_len_5b()
 {
     spi_write_reg(0x34, 0x0A);
 }
 
-static void si4432_set_synch_word_CCCC()
+static void si4432_set_synch_word_CCCC_no_header()
 {
-    spi_write_reg(0x33, 0x01);
+    spi_write_reg(0x33, 0x02);
     spi_write_reg(0x36, 0xCC);
-    spi_write_reg(0x37, 0xCC);
-}
-
-static void si4432_fill_tx_fifo(const uint8_t* data, uint8_t cnt)
-{
-    spi_write_reg(0x3E, cnt);
-    while(cnt--) {
-        spi_write_reg(0x7F, *data ++);
-    }
+	spi_write_reg(0x37, 0xCC);
 }
 
 static void si4432_enable_tx_handler_and_crc16()
@@ -294,85 +166,213 @@ static void si4432_enable_tx_handler_and_crc16()
 	spi_write_reg(0x30, 0x0D);
 }
 
-static void si4432_set_vco_and_pll()
+static void si4432_fill_fifo(const uint8_t* data, uint8_t len)
 {
-	spi_write_reg(0x5A, 0x7F);
-	spi_write_reg(0x59, 0x40);
+    spi_write_reg(0x3E, len);
+
+    while(len --)
+        spi_write_reg(0x7F, *data ++);
 }
 
-static void si4432_enable_transmitter()
+static void si4432_set_tx_power_20dbm()
+{
+    spi_write_reg(0x6D, 0x0F);
+}
+
+static void si4432_vco_pll()
+{
+    //AN415.pdf, p.25
+    spi_write_reg(0x5A, 0x7F);
+    spi_write_reg(0x59, 0x40);
+}
+
+static void si4432_tx_enable()
 {
     spi_write_reg(0x07, 0x09);
 }
 
-static void si4432_tx_433_92Mhz_15Khz_9_6Kbs(const uint8_t* data, uint8_t len)
+static void si4432_rx_enable()
 {
-    si4432_enable();
-    wdt_sleep_32ms();
+    spi_write_reg(0x07, 0x05);
+}
 
-    si4432_clear_interrupt_flags();
-    si4432_reset();
+static void si4432_rx_tx_disable()
+{
+    spi_write_reg(0x07, 0x01);
+}
 
+static void si4432_tx_433_92mhz_20dbm_unmodulated_500ms()
+{
+    PORTB &= ~0b00000001;
+    _delay_ms(32);
+    si4432_cleanup_interrupt_status_regs();
+
+    si4432_sw_reset();
+
+    //wait for POR interrupt
     while(PINB & 0b10);
+    si4432_cleanup_interrupt_status_regs();
+
+    //wait for chip ready interrupt
+    while(PINB & 0b10);
+    si4432_cleanup_interrupt_status_regs();
 
     si4432_disable_all_interrupts();
-    si4432_clear_interrupt_flags();
-
-    si4432_set_freq_433_92_low_side();
-    si4432_set_tx_data_rate_9_6kbs();
-    si4432_set_tx_deviation_15khz();
-    si4432_enable_fifo_and_gfsk();
-	si4432_enable_tx_handler_and_crc16();
-    si4432_set_preample_5_bytes();
-    si4432_set_synch_word_CCCC();
+    si4432_set_freq_433_92Mhz();
+    si4432_set_modulation_none();
+    si4432_set_gpio0_tx_gpio1_rx();
     si4432_set_tx_power_20dbm();
-
-    si4432_set_rf_switch_gpio0_tx_gpio1_rx();
-
-	si4432_set_vco_and_pll();
-
-	//set Crystal Oscillator Load Capacitance register
-	spi_write_reg(0x09, 0xD7);
-
-    si4432_fill_tx_fifo(data, len);
-
-    si4432_enable_transmitter();
-
-    if(!(8 & spi_read_reg(0x07)))
-        led_flash_2();
-
-    while(8 & spi_read_reg(0x07));
+    si4432_vco_pll();
+    si4432_tx_enable();
 
     led_flash_1();
-    si4432_disable();
+
+    _delay_ms(500);
+
+    //shutdown si4431
+    PORTB |= 0b00000001;
+    led_flash_2();
 }
 
-static void sys_init()
+static void si4432_rx_433_92mhz__unmodulated()
 {
-    cli();
-    CLKPR = 0x80;
-    CLKPR = 0x00;
-    wdt_reset();
-    set_sleep_mode(SLEEP_MODE_IDLE);
-    sleep_enable();
-    uart_init();
-    gpio_init();
-    spi_init();
-    sei();
+    PORTB &= ~0b00000001;
+    _delay_ms(32);
+    si4432_cleanup_interrupt_status_regs();
+
+    si4432_sw_reset();
+
+    //wait for POR interrupt
+    while(PINB & 0b10);
+    si4432_cleanup_interrupt_status_regs();
+
+    //wait for chip ready interrupt
+    while(PINB & 0b10);
+    si4432_cleanup_interrupt_status_regs();
+
+    si4432_disable_all_interrupts();
+    si4432_set_freq_433_92Mhz();
+    si4432_set_modulation_none();
+
+    //modem setup
+    spi_write_reg(0x1C, 0x2C);
+    spi_write_reg(0x20, 0x68);
+    spi_write_reg(0x21, 0x01);
+    spi_write_reg(0x22, 0x3A);
+    spi_write_reg(0x23, 0x93);
+    spi_write_reg(0x24, 0x01);
+    spi_write_reg(0x25, 0x95);
+    spi_write_reg(0x1D, 0x44);
+    spi_write_reg(0x1E, 0x0A);
+    spi_write_reg(0x2A, 0x1E);
+    spi_write_reg(0x1F, 0x03);
+    spi_write_reg(0x69, 0x60);
+
+    spi_write_reg(0x35, 0x00);
+    spi_write_reg(0x34, 0x00);
+
+    si4432_set_gpio0_tx_gpio1_rx();
+    si4432_vco_pll();
+
+    si4432_rx_enable();
+    si4432_enable_all_interrupts();
+    si4432_cleanup_interrupt_status_regs();
+
+    while(1) {
+        while(PINB & 0b10);
+        si4432_cleanup_interrupt_status_regs();
+        led_flash_1();
+//        spi_print_reg(0x04);
+//        spi_print_reg(0x05);
+
+//        si4432_rx_tx_disable();
+    }
+
+    //shutdown si4431
+    PORTB |= 0b00000001;
 }
 
-int main()
+static void si4432_tx_433_92mhz_gfsk_15khz_9_6kbs_20dbm()
 {
     const uint8_t data[] = {
         0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF
     };
-    sys_init();
-    si4432_disable();
-    wdt_sleep_32ms();
+
+    PORTB &= ~0b00000001;
+    _delay_ms(32);
+    si4432_cleanup_interrupt_status_regs();
+
+    si4432_sw_reset();
+
+    //wait for POR interrupt
+    while(PINB & 0b10);
+    si4432_cleanup_interrupt_status_regs();
+
+    //wait for chip ready interrupt
+    while(PINB & 0b10);
+    si4432_cleanup_interrupt_status_regs();
+
+    si4432_disable_all_interrupts();
+    si4432_set_freq_433_92Mhz();
+    si4432_set_modulation_gfsk_fifo_mode();
+    //si4432_set_tx_deviation_15khz();
+    si4432_set_rx_deviation_25khz();
+    //si4432_set_tx_data_rate_9_6kbs();
+    si4432_set_tx_data_rate_1_24kbs();
+    si4432_set_preamble_len_5b();
+    si4432_set_synch_word_CCCC_no_header();
+    si4432_enable_tx_handler_and_crc16();
+    si4432_set_gpio0_tx_gpio1_rx();
+    si4432_set_tx_power_20dbm();
+    si4432_vco_pll();
+    si4432_enable_packet_sent_interrupt_only();
+    si4432_cleanup_interrupt_status_regs();
+
     while(1) {
-        si4432_tx_433_92Mhz_15Khz_9_6Kbs(data, sizeof(data));
-        wdt_sleep_2s();
+        _delay_ms(2000);
+        si4432_fill_fifo(data, sizeof(data));
+        led_flash_1();
+        si4432_tx_enable();
+        //wait for packet sent interrupt
+        while(PINB & 0b10);
+        si4432_cleanup_interrupt_status_regs();
+        si4432_rx_tx_disable();
+        led_flash_1();
     }
+
+    //shutdown si4431
+    PORTB |= 0b00000001;
+}
+
+int main()
+{
+    cli();
+
+    //clock 1 Mhz
+    CLKPR = 0x80;
+    CLKPR = 0x03;
+
+    UBRR0 = USART_UBBR_VALUE;
+    UCSR0A = 0;
+    UCSR0B = (1 << TXEN0);
+    //8 data bits, 1 stop bit
+    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
+
+    DDRB = 0b101101;
+    PORTB |= 0b00000001; //shutdown si4432
+    DDRD |= 0b10000000;
+
+    SPSR = SPI2X; //clk / 2
+    SPCR = (1 << SPE) | (1 << MSTR);
+
+    sei();
+
+    si4432_tx_433_92mhz_gfsk_15khz_9_6kbs_20dbm();
+    //si4432_rx_433_92_unmodulated();
+//    while(1) {
+//        si4432_tx_433_92_20dbm_unmodulated_500ms();
+//        _delay_ms(2000);
+//    }
 
     return 0;
 }
