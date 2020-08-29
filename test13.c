@@ -75,6 +75,11 @@ static void si4432_cleanup_interrupt_status_regs()
     spi_read_reg(0x04);
 }
 
+static uint8_t si4432_read_interrupt_1()
+{
+    return spi_read_reg(0x03);
+}
+
 static void si4432_disable_all_interrupts()
 {
     spi_write_reg(0x05, 0x00);
@@ -93,6 +98,12 @@ static void si4432_enable_packet_sent_interrupt_only()
     spi_write_reg(0x06, 0x00);
 }
 
+static void si4432_enable_packet_receive_and_crc_error_interrupt_only()
+{
+    spi_write_reg(0x05, 0x03);
+    spi_write_reg(0x06, 0x00);
+}
+
 static void si4432_set_freq_433_92Mhz()
 {
     spi_write_reg(0x75, 0x53);
@@ -102,14 +113,26 @@ static void si4432_set_freq_433_92Mhz()
     spi_write_reg(0x73, 0xA0);
 }
 
-static void si4432_set_tx_deviation_15khz()
+static void si4432_set_freq_915Mhz()
+{
+    spi_write_reg(0x75, 0x75);
+    spi_write_reg(0x76, 0xBB);
+    spi_write_reg(0x77, 0x80);
+}
+
+static void si4432_set_deviation_15khz()
 {
     spi_write_reg(0x72, 0x18);
 }
 
-static void si4432_set_rx_deviation_25khz()
+static void si4432_set_deviation_25khz()
 {
     spi_write_reg(0x72, 0x28);
+}
+
+static void si4432_set_rx_deviation_45khz()
+{
+    spi_write_reg(0x72, 0x48);
 }
 
 static void si4432_set_tx_data_rate_9_6kbs()
@@ -117,7 +140,6 @@ static void si4432_set_tx_data_rate_9_6kbs()
     spi_write_reg(0x6E, 0x4E);
     spi_write_reg(0x6F, 0xA5);
     spi_write_reg(0x70, 0x2C);
-    spi_write_reg(0x58, 0x80);
 }
 
 static void si4432_set_tx_data_rate_1_24kbs()
@@ -126,6 +148,41 @@ static void si4432_set_tx_data_rate_1_24kbs()
     spi_write_reg(0x6F, 0x28);
     spi_write_reg(0x70, 0x2C);
     spi_write_reg(0x58, 0x80);
+}
+
+static void si4432_set_modem_1_24kbs_25khz_56_2khz()
+{
+    spi_write_reg(0x1C, 0x15);
+    spi_write_reg(0x20, 0x4D);
+    spi_write_reg(0x21, 0xC0);
+    spi_write_reg(0x22, 0x14);
+    spi_write_reg(0x23, 0x51);
+    spi_write_reg(0x24, 0x00);
+    spi_write_reg(0x25, 0x04);
+    spi_write_reg(0x1D, 0x44);
+    spi_write_reg(0x1E, 0x0A);
+    spi_write_reg(0x2A, 0x1E);
+    spi_write_reg(0x1F, 0x03);
+}
+
+static void si4432_set_modem_9_6kbs_45khz()
+{
+    spi_write_reg(0x1C, 0x1E);
+    spi_write_reg(0x20, 0xD0);
+    spi_write_reg(0x21, 0x00);
+    spi_write_reg(0x22, 0x9D);
+    spi_write_reg(0x23, 0x49);
+    spi_write_reg(0x24, 0x00);
+    spi_write_reg(0x25, 0x45);
+    spi_write_reg(0x1D, 0x44);
+    spi_write_reg(0x1E, 0x0A);
+    spi_write_reg(0x2A, 0x20);
+    spi_write_reg(0x1F, 0x03);
+}
+
+static void si4432_enable_agc_normal()
+{
+    spi_write_reg(0x69, 0x60);
 }
 
 static void si4432_set_gpio0_tx_gpio1_rx()
@@ -149,21 +206,45 @@ static void si4432_set_modulation_gfsk_fifo_mode()
 	spi_write_reg(0x71, 0x23);
 }
 
-static void si4432_set_preamble_len_5b()
+static void si4432_set_preamble_len_40bit()
 {
     spi_write_reg(0x34, 0x0A);
+}
+
+static void si4432_set_preamble_detection_threshold_20bit()
+{
+    spi_write_reg(0x35, 0x28);
+}
+
+static void si4432_set_preamble_detection_threshold_40bit()
+{
+    spi_write_reg(0x35, 0x58);
 }
 
 static void si4432_set_synch_word_CCCC_no_header()
 {
     spi_write_reg(0x33, 0x02);
+    spi_write_reg(0x32, 0x00);
     spi_write_reg(0x36, 0xCC);
 	spi_write_reg(0x37, 0xCC);
+}
+
+static void si4432_set_synch_word_2DD4_no_header()
+{
+    spi_write_reg(0x33, 0x02);
+    spi_write_reg(0x32, 0x00);
+    spi_write_reg(0x36, 0x2D);
+	spi_write_reg(0x37, 0xD4);
 }
 
 static void si4432_enable_tx_handler_and_crc16()
 {
 	spi_write_reg(0x30, 0x0D);
+}
+
+static void si4432_enable_rx_handler_and_crc16()
+{
+	spi_write_reg(0x30, 0x85);
 }
 
 static void si4432_fill_fifo(const uint8_t* data, uint8_t len)
@@ -183,7 +264,9 @@ static void si4432_vco_pll()
 {
     //AN415.pdf, p.25
     spi_write_reg(0x5A, 0x7F);
+    spi_write_reg(0x58, 0x80);
     spi_write_reg(0x59, 0x40);
+    spi_write_reg(0x09, 0xD7);
 }
 
 static void si4432_tx_enable()
@@ -199,6 +282,17 @@ static void si4432_rx_enable()
 static void si4432_rx_tx_disable()
 {
     spi_write_reg(0x07, 0x01);
+}
+
+static void si4432_reset_rx_fifo()
+{
+    spi_write_reg(0x08, 0x02);
+    spi_write_reg(0x08, 0x00);
+}
+
+static uint16_t si4432_read_battery_mv()
+{
+    return 2700 + 50 * spi_read_reg(0x1B);
 }
 
 static void si4432_tx_433_92mhz_20dbm_unmodulated_500ms()
@@ -234,7 +328,7 @@ static void si4432_tx_433_92mhz_20dbm_unmodulated_500ms()
     led_flash_2();
 }
 
-static void si4432_rx_433_92mhz__unmodulated()
+static void si4432_rx_433_92mhz_unmodulated()
 {
     PORTB &= ~0b00000001;
     _delay_ms(32);
@@ -264,9 +358,8 @@ static void si4432_rx_433_92mhz__unmodulated()
     spi_write_reg(0x25, 0x95);
     spi_write_reg(0x1D, 0x44);
     spi_write_reg(0x1E, 0x0A);
-    spi_write_reg(0x2A, 0x1E);
+//    spi_write_reg(0x2A, 0x1E);
     spi_write_reg(0x1F, 0x03);
-    spi_write_reg(0x69, 0x60);
 
     spi_write_reg(0x35, 0x00);
     spi_write_reg(0x34, 0x00);
@@ -292,7 +385,7 @@ static void si4432_rx_433_92mhz__unmodulated()
     PORTB |= 0b00000001;
 }
 
-static void si4432_tx_433_92mhz_gfsk_15khz_9_6kbs_20dbm()
+static void si4432_tx_433_92mhz_gfsk_25khz_1_24kbs_20dbm()
 {
     const uint8_t data[] = {
         0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF
@@ -315,12 +408,12 @@ static void si4432_tx_433_92mhz_gfsk_15khz_9_6kbs_20dbm()
     si4432_disable_all_interrupts();
     si4432_set_freq_433_92Mhz();
     si4432_set_modulation_gfsk_fifo_mode();
-    //si4432_set_tx_deviation_15khz();
-    si4432_set_rx_deviation_25khz();
+    //si4432_set_deviation_15khz();
+    si4432_set_deviation_25khz();
     //si4432_set_tx_data_rate_9_6kbs();
     si4432_set_tx_data_rate_1_24kbs();
-    si4432_set_preamble_len_5b();
-    si4432_set_synch_word_CCCC_no_header();
+    si4432_set_preamble_len_40bit();
+    si4432_set_synch_word_2DD4_no_header();
     si4432_enable_tx_handler_and_crc16();
     si4432_set_gpio0_tx_gpio1_rx();
     si4432_set_tx_power_20dbm();
@@ -342,6 +435,159 @@ static void si4432_tx_433_92mhz_gfsk_15khz_9_6kbs_20dbm()
 
     //shutdown si4431
     PORTB |= 0b00000001;
+}
+
+static void si4432_rx_433_92mhz_gfsk_25khz_1_24kbs()
+{
+    PORTB &= ~0b00000001;
+    _delay_ms(32);
+    si4432_cleanup_interrupt_status_regs();
+
+    si4432_sw_reset();
+
+    //wait for POR interrupt
+    while(PINB & 0b10);
+    si4432_cleanup_interrupt_status_regs();
+
+    //wait for chip ready interrupt
+    while(PINB & 0b10);
+    si4432_cleanup_interrupt_status_regs();
+
+    si4432_set_freq_433_92Mhz();
+    si4432_set_modem_1_24kbs_25khz_56_2khz();
+    si4432_set_deviation_25khz();
+    si4432_set_synch_word_2DD4_no_header();
+    si4432_enable_rx_handler_and_crc16();
+    si4432_set_modulation_gfsk_fifo_mode();
+    si4432_set_preamble_detection_threshold_20bit();
+    si4432_set_preamble_len_40bit();
+
+
+    si4432_set_gpio0_tx_gpio1_rx();
+    si4432_vco_pll();
+
+    spi_write_reg(0x6A, 0x0B);
+    spi_write_reg(0x68, 0x04);
+    spi_write_reg(0x1F, 0x03);
+
+    si4432_enable_all_interrupts();
+    si4432_cleanup_interrupt_status_regs();
+
+    while(1) {
+        si4432_rx_enable();
+        //wait for packet receive or CRC error interrupt
+        while(PINB & 0b10);
+        si4432_rx_tx_disable();
+        led_flash_1();
+        uint8_t intr =  si4432_read_interrupt_1();
+        si4432_cleanup_interrupt_status_regs();
+        si4432_reset_rx_fifo();
+        if(intr & 1)
+            led_flash_1();
+        _delay_ms(64);
+        if(intr & 2)
+            led_flash_2();
+    }
+
+    //shutdown si4431
+    PORTB |= 0b00000001;
+}
+
+static void si4432_tx_915mhz_gfsk_45khz_9_6kbs()
+{
+    PORTB &= ~0b00000001;
+    _delay_ms(32);
+    si4432_cleanup_interrupt_status_regs();
+
+    si4432_sw_reset();
+
+    //wait for POR interrupt
+    while(PINB & 0b10);
+    si4432_cleanup_interrupt_status_regs();
+
+    //wait for chip ready interrupt
+    while(PINB & 0b10);
+    si4432_cleanup_interrupt_status_regs();
+
+    si4432_set_freq_915Mhz();
+    si4432_set_tx_data_rate_9_6kbs();
+    si4432_set_rx_deviation_45khz();
+    si4432_set_preamble_len_40bit();
+    si4432_set_synch_word_2DD4_no_header();
+    si4432_enable_tx_handler_and_crc16();
+    si4432_set_modulation_gfsk_fifo_mode();
+    si4432_set_gpio0_tx_gpio1_rx();
+    si4432_vco_pll();
+    si4432_set_tx_power_20dbm();
+
+    while(1) {
+        _delay_ms(2000);
+        led_flash_1();
+
+        spi_write_reg(0x3E, 0x08);
+        spi_write_reg(0x7F, 0x42);
+        spi_write_reg(0x7F, 0x55);
+        spi_write_reg(0x7F, 0x54);
+        spi_write_reg(0x7F, 0x54);
+        spi_write_reg(0x7F, 0x4F);
+        spi_write_reg(0x7F, 0x4E);
+        spi_write_reg(0x7F, 0x31);
+        spi_write_reg(0x7F, 0x0D);
+
+        si4432_enable_packet_sent_interrupt_only();
+        si4432_cleanup_interrupt_status_regs();
+        si4432_tx_enable();
+        si4432_enable_packet_sent_interrupt_only();
+        si4432_cleanup_interrupt_status_regs();
+        while(PINB & 0b10);
+        si4432_cleanup_interrupt_status_regs();
+        led_flash_1();
+    }
+}
+
+static void si4432_rx_915mhz_gfsk_45khz_9_6kbs()
+{
+    PORTB &= ~0b00000001;
+    _delay_ms(32);
+    si4432_cleanup_interrupt_status_regs();
+    si4432_sw_reset();
+    //wait for POR interrupt
+    while(PINB & 0b10);
+    si4432_cleanup_interrupt_status_regs();
+
+    //wait for chip ready interrupt
+    while(PINB & 0b10);
+    si4432_cleanup_interrupt_status_regs();
+
+    si4432_set_freq_915Mhz();
+    si4432_set_modem_9_6kbs_45khz();
+    si4432_enable_agc_normal();
+    si4432_set_synch_word_2DD4_no_header();
+    si4432_enable_rx_handler_and_crc16();
+    si4432_set_modulation_gfsk_fifo_mode();
+    si4432_set_preamble_detection_threshold_20bit();
+    si4432_set_preamble_len_40bit();
+    si4432_set_gpio0_tx_gpio1_rx();
+    si4432_vco_pll();
+    si4432_rx_enable();
+    si4432_enable_packet_receive_and_crc_error_interrupt_only();
+    si4432_cleanup_interrupt_status_regs();
+
+    while(1) {
+        while(PINB & 0b10);
+        si4432_rx_tx_disable();
+        uint8_t intr1 = spi_read_reg(0x03);
+        spi_read_reg(0x04);
+
+        if(intr1 & 0x01) {
+            led_flash_2();
+        }
+        if(intr1 & 0x02) {
+            led_flash_1();
+        }
+        si4432_reset_rx_fifo();
+        si4432_rx_enable();
+    }
 }
 
 int main()
@@ -367,7 +613,11 @@ int main()
 
     sei();
 
-    si4432_tx_433_92mhz_gfsk_15khz_9_6kbs_20dbm();
+    _delay_ms(100);
+    si4432_rx_915mhz_gfsk_45khz_9_6kbs();
+//    si4432_tx_915mhz_gfsk_45khz_9_6kbs();
+//    si4432_rx_433_92mhz_gfsk_25khz_1_24kbs();
+//    si4432_tx_433_92mhz_gfsk_25khz_1_24kbs_20dbm();
     //si4432_rx_433_92_unmodulated();
 //    while(1) {
 //        si4432_tx_433_92_20dbm_unmodulated_500ms();
