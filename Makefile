@@ -90,6 +90,12 @@ none:
 	rm *.elf
 	avrdude -c USBASP -p m328p -U flash:w:test14.hex -U lfuse:w:0xe2:m -U hfuse:w:0xd9:m -U efuse:w:0xff:m
 
+15:
+	avr-gcc -mmcu=attiny13 -Wall -Os -s test15.c -o test15.elf
+	avr-objcopy -j .text -j .data -O ihex test15.elf test15.hex
+	rm *.elf
+	avrdude -c USBASP -p t13 -U flash:w:test15.hex -U lfuse:w:0x7a:m -U hfuse:w:0xff:m
+
 client_rel:
 	gcc -O2 -Werror -s client.c -o client
 
