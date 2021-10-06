@@ -79,13 +79,13 @@ int main()
         OCR0A = 0;
         OCR0B = 0;
 
-        _delay_ms(100);
+       _delay_ms(500);
         while(!btn_state());
-        _delay_ms(100);
+       _delay_ms(500);
         sleep_cpu();
-        _delay_ms(100);
+       _delay_ms(500);
         while(!btn_state());
-        _delay_ms(100);
+       _delay_ms(500);
     }
 
     return 0;
