@@ -91,10 +91,10 @@ none:
 	avrdude -c USBASP -p m328p -U flash:w:test14.hex -U lfuse:w:0xe2:m -U hfuse:w:0xd9:m -U efuse:w:0xff:m
 
 15:
-	avr-gcc -mmcu=attiny13 -Wall -Os -s 15-attiny13-pwd-2-candle-effect.c -o 15-attiny13-pwd-2-candle-effect.elf
-	avr-objcopy -j .text -j .data -O ihex 15-attiny13-pwd-2-candle-effect.elf 15-attiny13-pwd-2-candle-effect.hex
+	avr-gcc -mmcu=attiny13 -Wall -Os -s 15-attiny13-pwd-2-candle-effect.c -o 15.elf
+	avr-objcopy -j .text -j .data -O ihex 15.elf 15.hex
 	rm *.elf
-	avrdude -c USBASP -p t13 -U flash:w:15-attiny13-pwd-2-candle-effect.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m
+	avrdude -c USBASP -p t13 -U flash:w:15.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m
 
 client_rel:
 	gcc -O2 -Werror -s client.c -o client
