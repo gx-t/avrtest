@@ -26,7 +26,7 @@ static void gpio_init()
 
 static void pwm_init()
 {
-    TCCR0A = 0b10100011; //fast PWM
+    TCCR0A = 0b10100001; //phase correct PWM
     TCCR0B = 0b00000001; //no prescaler: clkI/O / 1
 }
 
@@ -53,39 +53,43 @@ static uint8_t btn_state()
     return 0b010000 & PINB; //press - low, reelase - high
 }
 
+static void step()
+{
+    static int16_t s[] = {0, 0, 0, 0, 0, 0, 0, 0};
+    static int16_t c[] = {120, 120, 120, 120, 120, 120, 120, 120};
+
+    uint16_t v1 = 0;
+    uint16_t v2 = 0;
+    for(uint8_t i = 0; i < sizeof(s) / sizeof(*s); i ++) {
+        c[i] -= s[i] / (i + 15);
+        s[i] += c[i] / (i + 15);
+        v1 += s[i];
+        v2 += c[i];
+    }
+    OCR0A = v1 / (sizeof(s) / sizeof(*s)) + 120;
+    OCR0B = v2 / (sizeof(c) / sizeof(*c)) + 120;
+}
+
 int main()
 {
     sys_init();
 
-    int16_t s[] = {0, 0, 0, 0, 0, 0, 0, 0};
-    int16_t c[] = {120, 120, 120, 120, 120, 120, 120, 120};
-
     while(1)
     {
         while(btn_state())
-        {
-            uint16_t v1 = 0;
-            uint16_t v2 = 0;
-            for(uint8_t i = 0; i < sizeof(s) / sizeof(*s); i ++) {
-                c[i] -= s[i] / (i + 15);
-                s[i] += c[i] / (i + 15);
-                v1 += s[i];
-                v2 += c[i];
-            }
-            OCR0A = v1 / (sizeof(s) / sizeof(*s)) + 120;
-            OCR0B = v2 / (sizeof(c) / sizeof(*c)) + 120;
-        }
+            step();
 
+
+       _delay_ms(50);
+        while(!btn_state())
+            step();
         OCR0A = 0;
         OCR0B = 0;
-
-       _delay_ms(500);
-        while(!btn_state());
-       _delay_ms(500);
+       _delay_ms(50);
         sleep_cpu();
-       _delay_ms(500);
+       _delay_ms(50);
         while(!btn_state());
-       _delay_ms(500);
+       _delay_ms(50);
     }
 
     return 0;
