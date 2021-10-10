@@ -5,7 +5,12 @@
 #include <util/delay.h>
 
 /*
-   ATTINY13 2 PWM
+   • ATTINY13
+   • Clock 600Khz (osc. 4.8Mhz)
+   • 2 PWM, phase correct mode
+   • Candle effect
+   • Circuit diagram:
+   • PCB:
  */
 
 ISR(PCINT0_vect)
