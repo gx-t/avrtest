@@ -8,14 +8,11 @@
    • ATTINY13
    • Clock 600Khz (osc. 4.8Mhz)
    • 2 PWM, phase correct mode
-   • Candle effect
+   • 24v LED control
+   • 2 paralell AO3400 NMOS
    • Circuit diagram:
    • PCB:
  */
-
-ISR(PCINT0_vect)
-{
-}
 
 static void cpu_clock_div_8()
 {
@@ -25,20 +22,14 @@ static void cpu_clock_div_8()
 
 static void gpio_init()
 {
-    DDRB    = 0b000011; //ouptut PB0, PB1 - LEDs
-    PORTB   = 0b110000; //pull-up PB5 (reset), PB4 (button)
+    DDRB    = 0b001001; //ouptut PB0 - gates, PB2 - sensor, PB3 - LED, PB4 - button
+    PORTB   = 0b110100; //pull-up PB2 (sensor), PB4 (button), PB5 (reset)
 }
 
 static void pwm_init()
 {
-    TCCR0A = 0b10100001; //phase correct PWM on PB0, PB1
+    TCCR0A = 0b10000001; //phase correct PWM on PB0
     TCCR0B = 0b00000001; //no prescaler: clkI/O / 1
-}
-
-static void interrupt_init()
-{
-    GIMSK |= 1 << PCIE; // enable PCINT[0:5] pin change interrupt
-    PCMSK |= 1 << PCINT4; // configure interrupt at PB4
 }
 
 static void sys_init()
@@ -47,9 +38,6 @@ static void sys_init()
     cpu_clock_div_8();
     gpio_init();
     pwm_init();
-    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-    sleep_enable();
-    interrupt_init();
     sei();
 }
 
@@ -91,7 +79,7 @@ int main()
         OCR0A = 0;
         OCR0B = 0;
        _delay_ms(50);
-        sleep_cpu();
+        while(btn_state());
        _delay_ms(50);
         while(!btn_state());
        _delay_ms(50);
