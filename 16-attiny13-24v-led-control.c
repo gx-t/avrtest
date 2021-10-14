@@ -42,6 +42,10 @@ static void sys_init()
     sei();
 }
 
+static uint8_t mode = 0;
+static uint8_t level = 0xFF;
+static uint8_t up = 0;
+
 static uint8_t btn_state()
 {
     return 0b010000 & PINB; //press - low, release - high
@@ -55,21 +59,28 @@ static void led_pulse()
     _delay_ms(100);
 }
 
-static uint8_t mode = 0;
-struct
+static void light_off()
 {
-    uint8_t up      : 1;
-    uint8_t dummy   : 5;
-    uint8_t val     : 3;
-} static level = {0, 0};
+    OCR0A = 0;
+}
 
-static void light_common(uint8_t m0, uint8_t m1, void (*set_proc)(), void (*timeout_proc)())
+static void light_set()
+{
+    OCR0A = level;
+}
+
+static void light_auto()
+{
+    OCR0A = PINB & 0b000100 ? level : 0;
+}
+
+static void light_common(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeout)())
 {
     led_pulse();
     if(m0 != mode)
         return;
     eeprom_write_byte((uint8_t*)0, mode);
-    set_proc();
+    setup();
 
     while(1)
     {
@@ -77,8 +88,8 @@ static void light_common(uint8_t m0, uint8_t m1, void (*set_proc)(), void (*time
         while(btn_state())
         {
             _delay_ms(5);
-            if(0 == cnt && timeout_proc)
-                timeout_proc();
+            if(0 == cnt && timeout)
+                timeout();
             cnt ++;
         }
 
@@ -97,41 +108,43 @@ static void light_common(uint8_t m0, uint8_t m1, void (*set_proc)(), void (*time
         while(!btn_state())
         {
             _delay_ms(200);
-            level.up ? (0 == level.val ? led_pulse() : level.val --) : (7 == level.val ? led_pulse() : level.val ++);
-            set_proc();
+            if(up)
+            {
+                if(0xFF == level)
+                    led_pulse();
+                else
+                {
+                    level <<= 1;
+                    level |= 1;
+                }
+            }
+            else
+            {
+                if(level == 1)
+                    led_pulse();
+                else
+                    level >>= 1;
+            }
+            light_set();
         }
-        level.up = !level.up;
-        eeprom_write_byte((uint8_t*)1, *(uint8_t*)&level);
+        setup();
+        up = !up;
+        eeprom_write_byte((uint8_t*)1,level);
     }
     _delay_ms(100);
     mode = m1;
-}
-
-static void light_off()
-{
-    OCR0A = 0;
-}
-
-static void light_on()
-{
-    OCR0A = 255;
-}
-
-static void light_auto()
-{
-    OCR0A = PINB & 0b000100 ? (0xFF >> level.val) : 0;
 }
 
 int main()
 {
     sys_init();
     mode = eeprom_read_byte((uint8_t*)0);
-    *((uint8_t*)&level) = eeprom_read_byte((uint8_t*)1);
+    level = eeprom_read_byte((uint8_t*)1);
 
     while(1)
     {
         light_common(0, 1, light_off, 0);
-        light_common(1, 2, light_on, 0);
+        light_common(1, 2, light_set, 0);
         light_common(2, 0, light_auto, led_pulse);
     }
 
