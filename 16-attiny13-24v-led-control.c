@@ -1,6 +1,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
+#include <avr/eeprom.h>
 #define F_CPU 600000L
 #include <util/delay.h>
 
@@ -43,46 +44,95 @@ static void sys_init()
 
 static uint8_t btn_state()
 {
-    return 0b010000 & PINB; //press - low, reelase - high
+    return 0b010000 & PINB; //press - low, release - high
 }
 
-static void step()
+static void led_pulse()
 {
-    static int16_t s[] = {0, 0, 0, 0, 0, 0, 0, 0};
-    static int16_t c[] = {120, 120, 120, 120, 120, 120, 120, 120};
+    PORTB |= 0b001000;
+    _delay_ms(10);
+    PORTB &= ~0b001000;
+    _delay_ms(100);
+}
 
-    uint16_t v1 = 0;
-    uint16_t v2 = 0;
-    for(uint8_t i = 0; i < sizeof(s) / sizeof(*s); i ++) {
-        c[i] -= s[i] / (i + 15);
-        s[i] += c[i] / (i + 15);
-        v1 += s[i];
-        v2 += c[i];
+static uint8_t mode = 0;
+struct
+{
+    uint8_t up      : 1;
+    uint8_t dummy   : 5;
+    uint8_t val     : 3;
+} static level = {0, 0};
+
+static void light_common(uint8_t m0, uint8_t m1, void (*set_proc)(), void (*timeout_proc)())
+{
+    led_pulse();
+    if(m0 != mode)
+        return;
+    eeprom_write_byte((uint8_t*)0, mode);
+    set_proc();
+
+    while(1)
+    {
+        uint8_t cnt = 1;
+        while(btn_state())
+        {
+            _delay_ms(5);
+            if(0 == cnt && timeout_proc)
+                timeout_proc();
+            cnt ++;
+        }
+
+        cnt = 1;
+        while(!btn_state())
+        {
+            _delay_ms(5);
+            if(0 == cnt)
+                break;
+            cnt ++;
+        }
+
+        if(0 != cnt)
+            break;
+
+        while(!btn_state())
+        {
+            _delay_ms(200);
+            level.up ? (0 == level.val ? led_pulse() : level.val --) : (7 == level.val ? led_pulse() : level.val ++);
+            set_proc();
+        }
+        level.up = !level.up;
+        eeprom_write_byte((uint8_t*)1, *(uint8_t*)&level);
     }
-    OCR0A = v1 / (sizeof(s) / sizeof(*s)) + 120;
-    OCR0B = v2 / (sizeof(c) / sizeof(*c)) + 120;
+    _delay_ms(100);
+    mode = m1;
+}
+
+static void light_off()
+{
+    OCR0A = 0;
+}
+
+static void light_on()
+{
+    OCR0A = 255;
+}
+
+static void light_auto()
+{
+    OCR0A = PINB & 0b000100 ? (0xFF >> level.val) : 0;
 }
 
 int main()
 {
     sys_init();
+    mode = eeprom_read_byte((uint8_t*)0);
+    *((uint8_t*)&level) = eeprom_read_byte((uint8_t*)1);
 
     while(1)
     {
-        while(btn_state())
-            step();
-
-
-       _delay_ms(50);
-        while(!btn_state())
-            step();
-        OCR0A = 0;
-        OCR0B = 0;
-       _delay_ms(50);
-        while(btn_state());
-       _delay_ms(50);
-        while(!btn_state());
-       _delay_ms(50);
+        light_common(0, 1, light_off, 0);
+        light_common(1, 2, light_on, 0);
+        light_common(2, 0, light_auto, led_pulse);
     }
 
     return 0;
