@@ -77,6 +77,9 @@ static void light_auto()
     OCR0A = PINB & 0b000100 ? level : 0;
 }
 
+#define TIMEOUT_STEP_MS     5
+#define UP_DOWN_PERIOD_MS   200
+
 static void light_control(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeout)())
 {
     led_pulse();
@@ -90,7 +93,7 @@ static void light_control(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeou
         uint8_t cnt = 1;
         while(btn_state())
         {
-            _delay_ms(5);
+            _delay_ms(TIMEOUT_STEP_MS);
             if(0 == cnt && timeout)
                 timeout();
             cnt ++;
@@ -99,7 +102,7 @@ static void light_control(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeou
         cnt = 1;
         while(!btn_state())
         {
-            _delay_ms(5);
+            _delay_ms(TIMEOUT_STEP_MS);
             if(0 == cnt)
                 break;
             cnt ++;
@@ -110,7 +113,7 @@ static void light_control(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeou
 
         while(!btn_state())
         {
-            _delay_ms(200);
+            _delay_ms(UP_DOWN_PERIOD_MS);
             if(up)
             {
                 if(0xFF == level)
@@ -134,7 +137,6 @@ static void light_control(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeou
         up = !up;
         eeprom_write_byte(eeprom_addr_level, level);
     }
-    _delay_ms(100);
     mode = m1;
 }
 
