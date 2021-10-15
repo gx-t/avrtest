@@ -8,7 +8,7 @@
 /*
    • ATTINY13
    • Clock 600Khz (osc. 4.8Mhz)
-   • 2 PWM, phase correct mode
+   • 1 PWM, phase correct mode
    • 24v LED control
    • 2 paralell AO3400 NMOS
    • Circuit diagram:
