@@ -46,6 +46,9 @@ static uint8_t mode = 0;
 static uint8_t level = 0xFF;
 static uint8_t up = 0;
 
+static const uint8_t* eeprom_addr_mode = (uint8_t*)0;
+static const uint8_t* eeprom_addr_level = (uint8_t*)1;
+
 static uint8_t btn_state()
 {
     return 0b010000 & PINB; //press - low, release - high
@@ -74,12 +77,12 @@ static void light_auto()
     OCR0A = PINB & 0b000100 ? level : 0;
 }
 
-static void light_common(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeout)())
+static void light_control(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeout)())
 {
     led_pulse();
     if(m0 != mode)
         return;
-    eeprom_write_byte((uint8_t*)0, mode);
+    eeprom_write_byte(eeprom_addr_mode, mode);
     setup();
 
     while(1)
@@ -129,7 +132,7 @@ static void light_common(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeout
         }
         setup();
         up = !up;
-        eeprom_write_byte((uint8_t*)1,level);
+        eeprom_write_byte(eeprom_addr_level, level);
     }
     _delay_ms(100);
     mode = m1;
@@ -138,14 +141,14 @@ static void light_common(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeout
 int main()
 {
     sys_init();
-    mode = eeprom_read_byte((uint8_t*)0);
-    level = eeprom_read_byte((uint8_t*)1);
+    mode = eeprom_read_byte(eeprom_addr_mode);
+    level = eeprom_read_byte(eeprom_addr_level);
 
     while(1)
     {
-        light_common(0, 1, light_off, 0);
-        light_common(1, 2, light_set, 0);
-        light_common(2, 0, light_auto, led_pulse);
+        light_control(0, 1, light_off, 0);
+        light_control(1, 2, light_set, 0);
+        light_control(2, 0, light_auto, led_pulse);
     }
 
     return 0;
