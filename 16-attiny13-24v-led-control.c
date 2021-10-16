@@ -23,7 +23,7 @@ static void cpu_clock_div_8()
 
 static void gpio_init()
 {
-    DDRB    = 0b001001; //ouptut PB0 - gates, PB2 - sensor, PB3 - LED, PB4 - button
+    DDRB    = 0b001001; //PB0 - gates, PB2 - sensor, PB3 - LED, PB4 - button
     PORTB   = 0b110100; //pull-up PB2 (sensor), PB4 (button), PB5 (reset)
 }
 
@@ -64,17 +64,20 @@ static void led_pulse()
 
 static void light_off()
 {
+    led_pulse();
     OCR0A = 0;
 }
 
 static void light_set()
 {
+    led_pulse();
     OCR0A = level;
 }
 
 static void light_auto()
 {
-    OCR0A = PINB & 0b000100 ? level : 0;
+    led_pulse();
+    OCR0A = (PINB & 0b000100) ? level : 0;
 }
 
 #define TIMEOUT_STEP_MS     5
@@ -82,7 +85,6 @@ static void light_auto()
 
 static void light_control(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeout)())
 {
-    led_pulse();
     if(m0 != mode)
         return;
     eeprom_write_byte(eeprom_addr_mode, mode);
@@ -150,7 +152,7 @@ int main()
     {
         light_control(0, 1, light_off, 0);
         light_control(1, 2, light_set, 0);
-        light_control(2, 0, light_auto, led_pulse);
+        light_control(2, 0, light_auto, light_auto);
     }
 
     return 0;
