@@ -46,8 +46,8 @@ static uint8_t mode = 0;
 static uint8_t level = 0xFF;
 static uint8_t up = 0;
 
-static const uint8_t* eeprom_addr_mode = (uint8_t*)0;
-static const uint8_t* eeprom_addr_level = (uint8_t*)1;
+static uint8_t* eeprom_addr_mode = (uint8_t*)0;
+static uint8_t* eeprom_addr_level = (uint8_t*)1;
 
 static uint8_t btn_state()
 {
@@ -64,58 +64,49 @@ static void led_pulse()
 
 static void light_off()
 {
-    led_pulse();
     OCR0A = 0;
 }
 
 static void light_set()
 {
-    led_pulse();
     OCR0A = level;
 }
 
 static void light_auto()
 {
-    led_pulse();
     OCR0A = (PINB & 0b000100) ? level : 0;
+    led_pulse();
 }
 
 #define TIMEOUT_STEP_MS     5
 #define UP_DOWN_PERIOD_MS   200
 
-static void light_control(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeout)())
+static void light_control(uint8_t m0, uint8_t m1, void (*op)())
 {
     if(m0 != mode)
         return;
     eeprom_write_byte(eeprom_addr_mode, mode);
-    setup();
 
     while(1)
     {
-        uint8_t cnt = 1;
+        uint8_t cnt = 0;
         while(btn_state())
         {
-            _delay_ms(TIMEOUT_STEP_MS);
-            if(0 == cnt && timeout)
-                timeout();
+            if(!cnt)
+                op();
             cnt ++;
+            _delay_ms(TIMEOUT_STEP_MS);
         }
 
-        cnt = 1;
-        while(!btn_state())
-        {
+        cnt = 0;
+        while(!btn_state() && ++ cnt)
             _delay_ms(TIMEOUT_STEP_MS);
-            if(0 == cnt)
-                break;
-            cnt ++;
-        }
 
-        if(0 != cnt)
+        if(cnt)
             break;
 
         while(!btn_state())
         {
-            _delay_ms(UP_DOWN_PERIOD_MS);
             if(up)
             {
                 if(0xFF == level)
@@ -134,8 +125,8 @@ static void light_control(uint8_t m0, uint8_t m1, void (*setup)(), void (*timeou
                     level >>= 1;
             }
             light_set();
+            _delay_ms(UP_DOWN_PERIOD_MS);
         }
-        setup();
         up = !up;
         eeprom_write_byte(eeprom_addr_level, level);
     }
@@ -150,9 +141,9 @@ int main()
 
     while(1)
     {
-        light_control(0, 1, light_off, 0);
-        light_control(1, 2, light_set, 0);
-        light_control(2, 0, light_auto, light_auto);
+        light_control(0, 1, light_off);
+        light_control(1, 2, light_set);
+        light_control(2, 0, light_auto);
     }
 
     return 0;
