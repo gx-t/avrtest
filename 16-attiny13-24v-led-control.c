@@ -86,7 +86,6 @@ static void light_control(uint8_t m0, uint8_t m1, void (*op)())
     if(m0 != mode)
         return;
     eeprom_write_byte(eeprom_addr_mode, mode);
-
     while(1)
     {
         uint8_t cnt = 0;
@@ -97,14 +96,11 @@ static void light_control(uint8_t m0, uint8_t m1, void (*op)())
             cnt ++;
             _delay_ms(TIMEOUT_STEP_MS);
         }
-
         cnt = 0;
         while(!btn_state() && ++ cnt)
             _delay_ms(TIMEOUT_STEP_MS);
-
         if(cnt)
             break;
-
         while(!btn_state())
         {
             if(up)
