@@ -33,12 +33,35 @@ static void pwm_init()
     TCCR0B = 0b00000001; //no prescaler: clkI/O / 1
 }
 
+static void led_pulse()
+{
+    PORTB |= 0b001000;
+    _delay_ms(10);
+    PORTB &= ~0b001000;
+    _delay_ms(100);
+}
+
+static void adc_init()
+{
+    ADMUX = 0b00100001; //Vcc as ref., left adjust, ADC1 (PB2)
+    ADCSRA = 0b11000011; //enable, start, clk/8
+    led_pulse(); //no need to wait for ADC, this delay is enough
+}
+
+static uint8_t adc_read()
+{
+    ADCSRA |= 0b01000000; //start conversion
+    led_pulse();
+    return ADCH; //no need to wait for finish - delay if led_pulse is enough
+}
+
 static void sys_init()
 {
     cli();
     cpu_clock_div_8();
     gpio_init();
     pwm_init();
+    adc_init();
     sei();
 }
 
@@ -54,14 +77,6 @@ static uint8_t btn_state()
     return 0b010000 & PINB; //press - low, release - high
 }
 
-static void led_pulse()
-{
-    PORTB |= 0b001000;
-    _delay_ms(10);
-    PORTB &= ~0b001000;
-    _delay_ms(100);
-}
-
 static void light_off()
 {
     OCR0A = 0;
@@ -74,8 +89,8 @@ static void light_set()
 
 static void light_auto()
 {
-    OCR0A = (PINB & 0b000100) ? level : 0;
-    led_pulse();
+    uint8_t threshold = OCR0A ? 64 : 128;
+    OCR0A = adc_read() > threshold ? level : 0;
 }
 
 #define TIMEOUT_STEP_MS     5
