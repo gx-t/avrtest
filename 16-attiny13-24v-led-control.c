@@ -36,7 +36,7 @@ static void pwm_init()
 static void led_pulse()
 {
     PORTB |= 0b001000;
-    _delay_ms(10);
+    _delay_ms(1);
     PORTB &= ~0b001000;
     _delay_ms(100);
 }
@@ -67,7 +67,6 @@ static void sys_init()
 
 static uint8_t mode = 0;
 static uint8_t level = 0xFF;
-static uint8_t up = 0;
 
 static uint8_t* eeprom_addr_mode = (uint8_t*)0;
 static uint8_t* eeprom_addr_level = (uint8_t*)1;
@@ -96,7 +95,57 @@ static void light_auto()
 #define TIMEOUT_STEP_MS     5
 #define UP_DOWN_PERIOD_MS   200
 
-static void light_control(uint8_t m0, uint8_t m1, void (*op)())
+static void light_6min()
+{
+    uint8_t cnt1 = 0;
+    OCR0A = level;
+    while(!btn_state());
+    _delay_ms(100);
+
+    while(btn_state() && ++cnt1)
+    {
+        uint8_t cnt2 = 0;
+        led_pulse();
+        led_pulse();
+        while(btn_state() && ++cnt2)
+            _delay_ms(TIMEOUT_STEP_MS);
+    }
+    OCR0A = 0;
+    _delay_ms(100);
+    while(!btn_state());
+    _delay_ms(100);
+}
+
+static void level_up_down()
+{
+    static uint8_t up = 0;
+    while(!btn_state())
+    {
+        if(up)
+        {
+            if(0xFF == level)
+                led_pulse();
+            else
+            {
+                level <<= 1;
+                level |= 1;
+            }
+        }
+        else
+        {
+            if(level == 1)
+                led_pulse();
+            else
+                level >>= 1;
+        }
+        light_set();
+        _delay_ms(UP_DOWN_PERIOD_MS);
+    }
+    up = !up;
+    eeprom_write_byte(eeprom_addr_level, level);
+}
+
+static void light_control(uint8_t m0, uint8_t m1, void (*op)(), void (*lp_op)())
 {
     if(m0 != mode)
         return;
@@ -108,38 +157,15 @@ static void light_control(uint8_t m0, uint8_t m1, void (*op)())
         {
             if(!cnt)
                 op();
-            cnt ++;
+            cnt++;
             _delay_ms(TIMEOUT_STEP_MS);
         }
         cnt = 0;
-        while(!btn_state() && ++ cnt)
+        while(!btn_state() && ++cnt)
             _delay_ms(TIMEOUT_STEP_MS);
         if(cnt)
             break;
-        while(!btn_state())
-        {
-            if(up)
-            {
-                if(0xFF == level)
-                    led_pulse();
-                else
-                {
-                    level <<= 1;
-                    level |= 1;
-                }
-            }
-            else
-            {
-                if(level == 1)
-                    led_pulse();
-                else
-                    level >>= 1;
-            }
-            light_set();
-            _delay_ms(UP_DOWN_PERIOD_MS);
-        }
-        up = !up;
-        eeprom_write_byte(eeprom_addr_level, level);
+        lp_op();
     }
     mode = m1;
 }
@@ -152,9 +178,9 @@ int main()
 
     while(1)
     {
-        light_control(0, 1, light_off);
-        light_control(1, 2, light_set);
-        light_control(2, 0, light_auto);
+        light_control(0, 1, light_off, light_6min);
+        light_control(1, 2, light_set, level_up_down);
+        light_control(2, 0, light_auto, level_up_down);
     }
 
     return 0;
