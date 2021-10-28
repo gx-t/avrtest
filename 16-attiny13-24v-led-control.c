@@ -11,8 +11,7 @@
    • 1 PWM, phase correct mode
    • 24v LED control
    • 2 paralell AO3400 NMOS
-   • Circuit diagram:
-   • PCB:
+   • Circuit diagram, PCB: https://oshwlab.com/shah32768/led-24v-light-control
  */
 
 static void cpu_clock_div_8()
@@ -88,7 +87,7 @@ static void light_set()
 
 static void light_auto()
 {
-    uint8_t threshold = OCR0A ? 64 : 128;
+    uint8_t threshold = OCR0A ? 64 : 128; //off at 22/5 lx
     OCR0A = adc_read() > threshold ? level : 0;
 }
 
