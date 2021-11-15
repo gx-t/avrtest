@@ -35,7 +35,7 @@ static void pwm_init()
 static void led_pulse()
 {
     PORTB |= 0b001000;
-    _delay_ms(1);
+    _delay_ms(10);
     PORTB &= ~0b001000;
     _delay_ms(100);
 }
