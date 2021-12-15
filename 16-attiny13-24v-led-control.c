@@ -51,7 +51,7 @@ static uint8_t adc_read()
 {
     ADCSRA |= 0b01000000; //start conversion
     led_pulse();
-    return ADCH; //no need to wait for finish - delay if led_pulse is enough
+    return ADCH; //led_pulse delay is enough for ADC to finish operation
 }
 
 static void sys_init()
