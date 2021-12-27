@@ -6,12 +6,30 @@
 #include <util/delay.h>
 
 /*
-   • ATTINY13
-   • Clock 600Khz (osc. 4.8Mhz)
-   • 1 PWM, phase correct mode
-   • 24v LED control
-   • 2 paralell AO3400 NMOS
-   • Circuit diagram, PCB: https://oshwlab.com/shah32768/led-24v-light-control
+    • ATTINY13
+    • Clock 600Khz (osc. 4.8Mhz)
+    • 1 PWM, phase correct mode
+    • 24v LED control
+    • 2 paralell AO3400 NMOS
+    • Circuit diagram, PCB: https://oshwlab.com/shah32768/led-24v-light-control
+    
+    
+    Event handling:
+
+    • Power on: move to the last active state (1, 2 or 3), load the last level
+    • Button click: move to the next mode (1-2-3-1)
+    • Button long press: sub-mode (1.1, 2.1, 2.2, 3.1, 3.2)
+
+    Modes of operation:
+
+    1. Light is off, LED is off
+        1.1 Light is on for 6 minutes, LED double flashes with double pulses while light is on
+    2. Light is on, LED is off
+        2.1 While button is pressed, the light level increases. When riches maximum level the LED flashes quickly
+        2.2 While button is pressed, the light level decreases. When riches minimum level the LED flashes quickly
+    3. Light is on when it is dark, otherwise - off, LED flashes
+        3.1 While button is pressed, the light level increases. When riches maximum level the LED flashes quickly
+        3.2 While button is pressed, the light level decreases. When riches minimum level the LED flashes quickly
  */
 
 static void cpu_clock_div_8()
@@ -144,7 +162,7 @@ static void level_up_down()
     eeprom_write_byte(eeprom_addr_level, level);
 }
 
-static void light_control(uint8_t m0, uint8_t m1, void (*op)(), void (*lp_op)())
+static void light_control(uint8_t m0, uint8_t m1, void (*main_op)(), void (*long_press_op)())
 {
     if(m0 != mode)
         return;
@@ -155,7 +173,7 @@ static void light_control(uint8_t m0, uint8_t m1, void (*op)(), void (*lp_op)())
         while(btn_state())
         {
             if(!cnt)
-                op();
+                main_op();
             cnt++;
             _delay_ms(TIMEOUT_STEP_MS);
         }
@@ -164,7 +182,7 @@ static void light_control(uint8_t m0, uint8_t m1, void (*op)(), void (*lp_op)())
             _delay_ms(TIMEOUT_STEP_MS);
         if(cnt)
             break;
-        lp_op();
+        long_press_op();
     }
     mode = m1;
 }
