@@ -20,16 +20,16 @@
     • Button click: move to the next mode (1-2-3-1)
     • Button long press: sub-mode (1.1, 2.1, 2.2, 3.1, 3.2)
 
-    Modes of operation:
+    Modes of operation (mode value):
 
-    1. Light is off, LED is off
-        1.1 Light is on for 6 minutes, LED double flashes with double pulses while light is on
-    2. Light is on, LED is off
-        2.1 While button is pressed, the light level increases. When riches maximum level the LED flashes quickly
-        2.2 While button is pressed, the light level decreases. When riches minimum level the LED flashes quickly
-    3. Light is on when it is dark, otherwise - off, LED flashes
-        3.1 While button is pressed, the light level increases. When riches maximum level the LED flashes quickly
-        3.2 While button is pressed, the light level decreases. When riches minimum level the LED flashes quickly
+    0. Light is off, LED is off
+        * Light is on for 6 minutes, LED double flashes with double pulses while light is on
+    1. Light is on, LED is off
+        * While button is pressed, the light level increases. When riches maximum level the LED flashes quickly
+        * While button is pressed, the light level decreases. When riches minimum level the LED flashes quickly
+    2. Light is on when it is dark, otherwise - off, LED flashes
+        * While button is pressed, the light level increases. When riches maximum level the LED flashes quickly
+        * While button is pressed, the light level decreases. When riches minimum level the LED flashes quickly
  */
 
 static void cpu_clock_div_8()
@@ -191,6 +191,8 @@ int main()
 {
     sys_init();
     mode = eeprom_read_byte(eeprom_addr_mode);
+    if(mode > 2)
+        mode = 0;
     level = eeprom_read_byte(eeprom_addr_level);
 
     while(1)
