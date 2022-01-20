@@ -6,30 +6,30 @@
 #include <util/delay.h>
 
 /*
-    • ATTINY13
-    • Clock 600Khz (osc. 4.8Mhz)
-    • 1 PWM, phase correct mode
-    • 24v LED control
-    • 2 paralell AO3400 NMOS
-    • Circuit diagram, PCB: https://oshwlab.com/shah32768/led-24v-light-control
-    
-    
-    Event handling:
+   • ATTINY13
+   • Clock 600Khz (osc. 4.8Mhz)
+   • 1 PWM, phase correct mode
+   • 24v LED control
+   • 2 paralell AO3400 NMOS
+   • Circuit diagram, PCB: https://oshwlab.com/shah32768/led-24v-light-control
 
-    • Power on: move to the last active state (1, 2 or 3), load the last level
-    • Button click: move to the next mode (1-2-3-1)
-    • Button long press: sub-mode (1.1, 2.1, 2.2, 3.1, 3.2)
 
-    Modes of operation (mode value):
+   Event handling:
 
-    0. Light is off, LED is off
-        * Light is on for 6 minutes, LED double flashes with double pulses while light is on
-    1. Light is on, LED is off
-        * While button is pressed, the light level increases. When riches maximum level the LED flashes quickly
-        * While button is pressed, the light level decreases. When riches minimum level the LED flashes quickly
-    2. Light is on when it is dark, otherwise - off, LED flashes
-        * While button is pressed, the light level increases. When riches maximum level the LED flashes quickly
-        * While button is pressed, the light level decreases. When riches minimum level the LED flashes quickly
+   • Power on: move to the last active state (1, 2 or 3), load the last level
+   • Button click: move to the next mode (1-2-3-1)
+   • Button long press: sub-mode (1.1, 2.1, 2.2, 3.1, 3.2)
+
+   Modes of operation (mode value):
+
+   0. Light is off, LED is off
+ * Light is on for 6 minutes, LED double flashes with double pulses while light is on
+ 1. Light is on, LED is off
+ * While button is pressed, the light level increases. When riches maximum level the LED flashes quickly
+ * While button is pressed, the light level decreases. When riches minimum level the LED flashes quickly
+ 2. Light is on when it is dark, otherwise - off, LED flashes
+ * While button is pressed, the light level increases. When riches maximum level the LED flashes quickly
+ * While button is pressed, the light level decreases. When riches minimum level the LED flashes quickly
  */
 
 static void cpu_clock_div_8()
@@ -162,9 +162,9 @@ static void level_up_down()
     eeprom_write_byte(eeprom_addr_level, level);
 }
 
-static void light_control(uint8_t m0, uint8_t m1, void (*main_op)(), void (*long_press_op)())
+static void light_control(uint8_t m, void (*main_op)(), void (*long_press_op)())
 {
-    if(m0 != mode)
+    if(m != mode)
         return;
     eeprom_write_byte(eeprom_addr_mode, mode);
     while(1)
@@ -184,22 +184,22 @@ static void light_control(uint8_t m0, uint8_t m1, void (*main_op)(), void (*long
             break;
         long_press_op();
     }
-    mode = m1;
+    mode ++;
 }
 
 int main()
 {
     sys_init();
     mode = eeprom_read_byte(eeprom_addr_mode);
-    if(mode > 2)
-        mode = 0;
     level = eeprom_read_byte(eeprom_addr_level);
 
     while(1)
     {
-        light_control(0, 1, light_off, light_6min);
-        light_control(1, 2, light_set, level_up_down);
-        light_control(2, 0, light_auto, level_up_down);
+        light_control(0, light_off, light_6min);
+        light_control(1, light_set, level_up_down);
+        light_control(2, light_auto, level_up_down);
+
+        mode = 0;
     }
 
     return 0;
