@@ -111,6 +111,16 @@ static void light_set()
     OCR0A = level;
 }
 
+#ifdef LIGHT_PULSE_SUPPORT
+static void light_pulse()
+{
+    OCR0A = level;
+    _delay_ms(10);
+    OCR0A = 0;
+    _delay_ms(100);
+}
+#endif // LIGHT_PULSE_SUPPORT
+
 #ifdef LIGHT_AUTO_SUPPORT
 static void light_auto()
 {
@@ -125,6 +135,10 @@ static void light_auto()
 static void light_6min()
 {
     uint8_t cnt1 = 0;
+#ifdef LIGHT_PULSE_SUPPORT
+    light_pulse();
+    light_pulse();
+#endif
     OCR0A = level;
     while(!btn_state());
     _delay_ms(100);
@@ -208,9 +222,11 @@ int main()
         light_control(0, light_off, light_6min);
         light_control(1, light_set, level_up_down);
 #ifdef LIGHT_AUTO_SUPPORT
+#ifdef LIGHT_PULSE_SUPPORT
+        light_pulse();
+#endif // LIGHT_PULSE_SUPPORT
         light_control(2, light_auto, level_up_down);
 #endif // LIGHT_AUTO_SUPPORT
-
         mode = 0;
     }
 

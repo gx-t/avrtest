@@ -108,6 +108,18 @@ none:
 	rm *.elf
 	avrdude -c USBASP -p t13 -U flash:w:16.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m -U eeprom:w:0x00,0xff:m
 
+16-light-pulse:
+	avr-gcc -mmcu=attiny13 -Wall -Os -s 16-attiny13-24v-led-control.c -DLIGHT_PULSE_SUPPORT -o 16.elf
+	avr-objcopy -j .text -j .data -O ihex 16.elf 16.hex
+	rm *.elf
+	avrdude -c USBASP -p t13 -U flash:w:16.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m -U eeprom:w:0x00,0xff:m
+
+16-light-auto-pulse:
+	avr-gcc -mmcu=attiny13 -Wall -Os -s 16-attiny13-24v-led-control.c -DLIGHT_AUTO_SUPPORT -DLIGHT_PULSE_SUPPORT -o 16.elf
+	avr-objcopy -j .text -j .data -O ihex 16.elf 16.hex
+	rm *.elf
+	avrdude -c USBASP -p t13 -U flash:w:16.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m -U eeprom:w:0x00,0xff:m
+
 client_rel:
 	gcc -O2 -Werror -s client.c -o client
 
