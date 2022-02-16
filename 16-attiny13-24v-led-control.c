@@ -41,7 +41,11 @@ static void cpu_clock_div_8()
 static void gpio_init()
 {
     DDRB    = 0b001001; //PB0 - gates, PB2 - sensor, PB3 - LED, PB4 - button
+#ifdef LIGHT_AUTO_SUPPORT
     PORTB   = 0b110100; //pull-up PB2 (sensor), PB4 (button), PB5 (reset)
+#else
+    PORTB   = 0b110000; //pull-up PB4 (button), PB5 (reset)
+#endif //LIGHT_AUTO_SUPPORT
 }
 
 static void pwm_init()
@@ -53,11 +57,12 @@ static void pwm_init()
 static void led_pulse()
 {
     PORTB |= 0b001000;
-    _delay_ms(10);
+    _delay_ms(1);
     PORTB &= ~0b001000;
     _delay_ms(100);
 }
 
+#ifdef LIGHT_AUTO_SUPPORT
 static void adc_init()
 {
     ADMUX = 0b00100001; //Vcc as ref., left adjust, ADC1 (PB2)
@@ -71,6 +76,7 @@ static uint8_t adc_read()
     led_pulse();
     return ADCH; //led_pulse delay is enough for ADC to finish operation
 }
+#endif // LIGHT_AUTO_SUPPORT
 
 static void sys_init()
 {
@@ -78,7 +84,9 @@ static void sys_init()
     cpu_clock_div_8();
     gpio_init();
     pwm_init();
+#ifdef LIGHT_AUTO_SUPPORT
     adc_init();
+#endif // LIGHT_AUTO_SUPPORT
     sei();
 }
 
@@ -103,11 +111,13 @@ static void light_set()
     OCR0A = level;
 }
 
+#ifdef LIGHT_AUTO_SUPPORT
 static void light_auto()
 {
     uint8_t threshold = OCR0A ? 64 : 128; //off at 22/5 lx
     OCR0A = adc_read() > threshold ? level : 0;
 }
+#endif // LIGHT_AUTO_SUPPORT
 
 #define TIMEOUT_STEP_MS     5
 #define UP_DOWN_PERIOD_MS   200
@@ -197,7 +207,9 @@ int main()
     {
         light_control(0, light_off, light_6min);
         light_control(1, light_set, level_up_down);
+#ifdef LIGHT_AUTO_SUPPORT
         light_control(2, light_auto, level_up_down);
+#endif // LIGHT_AUTO_SUPPORT
 
         mode = 0;
     }
