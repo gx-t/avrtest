@@ -62,7 +62,6 @@ static void led_pulse()
     _delay_ms(100);
 }
 
-#ifdef LIGHT_AUTO_SUPPORT
 static void adc_init()
 {
     ADMUX = 0b00100001; //Vcc as ref., left adjust, ADC1 (PB2)
@@ -76,7 +75,6 @@ static uint8_t adc_read()
     led_pulse();
     return ADCH; //led_pulse delay is enough for ADC to finish operation
 }
-#endif // LIGHT_AUTO_SUPPORT
 
 static void sys_init()
 {
@@ -111,7 +109,6 @@ static void light_set()
     OCR0A = level;
 }
 
-#ifdef LIGHT_PULSE_SUPPORT
 static void light_pulse()
 {
     OCR0A = level;
@@ -119,15 +116,12 @@ static void light_pulse()
     OCR0A = 0;
     _delay_ms(100);
 }
-#endif // LIGHT_PULSE_SUPPORT
 
-#ifdef LIGHT_AUTO_SUPPORT
 static void light_auto()
 {
     uint8_t threshold = OCR0A ? 64 : 128; //off at 22/5 lx
     OCR0A = adc_read() > threshold ? level : 0;
 }
-#endif // LIGHT_AUTO_SUPPORT
 
 #define TIMEOUT_STEP_MS     5
 #define UP_DOWN_PERIOD_MS   200
