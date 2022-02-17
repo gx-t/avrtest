@@ -119,7 +119,7 @@ static void light_pulse()
 
 static void light_auto()
 {
-    uint8_t threshold = OCR0A ? 64 : 128; //off at 22/5 lx
+    uint8_t threshold = OCR0A ? 64 : 128; // off/on <<= 22/5 lx
     OCR0A = adc_read() > threshold ? level : 0;
 }
 
