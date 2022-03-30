@@ -2,7 +2,7 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <avr/wdt.h>
-#define F_CPU 1200000UL
+#define F_CPU 600000L
 #include <util/delay.h>
 
 /*
@@ -15,9 +15,9 @@
     PB4 - LED3
 
     VCC, GND 2.2uF 0805
-    VCC - 1N5817 - 4.7V zener - GND
+    VCC - 4Fx5.5V - GND
 
-    Solar - GND, 4.7V zener
+    Solar - Schottky - VCC
 
     Sleep, WDT on 5V 9uA,3.3V 4.4uA
 
@@ -63,7 +63,7 @@ static void wdt_sleep_64ms()
     sleep_cpu();
 }
 
-static void cpu_clock_set_1mhz()
+static void cpu_clock_div_8()
 {
     CLKPR = 0b10000000;
     CLKPR = 0b00000011;
@@ -72,7 +72,7 @@ static void cpu_clock_set_1mhz()
 static void sys_init()
 {
     cli();
-    cpu_clock_set_1mhz();
+    cpu_clock_div_8();
     gpio_init();
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     sleep_enable();

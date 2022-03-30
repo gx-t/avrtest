@@ -70,7 +70,7 @@ none:
 	avr-gcc -mmcu=attiny13 -Wall -Os -s 11-attiny13-led-solar-beacon.c -o test11.elf
 	avr-objcopy -j .text -j .data -O ihex test11.elf test11.hex
 	rm *.elf
-	avrdude -c USBASP -p t13 -U flash:w:test11.hex -U lfuse:w:0x7a:m -U hfuse:w:0xff:m
+	avrdude -c USBASP -p t13 -U flash:w:test11.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m
 
 12:
 	avr-gcc -std=c99 -mmcu=atmega328p -Wno-unused-function -Wall -Werror -Os -s test12.c -o test12.elf
@@ -97,7 +97,7 @@ none:
 	avrdude -c USBASP -p t13 -U flash:w:15.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m
 
 16:
-	avr-gcc -mmcu=attiny13 -Wall -Os -s 16-attiny13-24v-led-control.c -DLIGHT_AUTO_SUPPORT -o 16.elf
+	avr-gcc -mmcu=attiny13 -Wall -Wno-unused-function -Os -s 16-attiny13-24v-led-control.c -DLIGHT_AUTO_SUPPORT -o 16.elf
 	avr-objcopy -j .text -j .data -O ihex 16.elf 16.hex
 	rm *.elf
 	avrdude -c USBASP -p t13 -U flash:w:16.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m -U eeprom:w:0x00,0xff:m
