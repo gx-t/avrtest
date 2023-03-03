@@ -140,6 +140,13 @@ none:
 	avrdude -c USBASP -p t13 -U flash:w:16.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m -U eeprom:w:0x00,0xff:m
 	rm 16.hex
 
+17:
+	avr-gcc -mmcu=attiny13 -Wall -Os -s 17-attiny13-tc4420-12-220-simsin-inverter.c -o 17.elf
+	avr-objcopy -j .text -j .data -O ihex 17.elf 17.hex
+	rm *.elf
+	avrdude -c USBASP -p t13 -U flash:w:17.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m
+	rm 17.hex
+
 client_rel:
 	gcc -O2 -Werror -s client.c -o client
 
