@@ -7,78 +7,38 @@
 /*
    • ATTINY13
    • Clock 600Khz (osc. 4.8Mhz)
-   • 2 Soft PWM
-   • 2 TC4420 on PWM outputs
+   • 2 TC4420 on PB0, PB1
    • Circuit diagram:
    • PCB:
  */
 
-ISR(PCINT0_vect)
+static void wait_period(uint8_t output)
 {
-}
-
-static void cpu_clock_div_8()
-{
-    CLKPR = 0b10000000;
-    CLKPR = 0b00000011;
-}
-
-static void gpio_init()
-{
-    DDRB    = 0b000011; //ouptut PB0, PB1 - LEDs
-    PORTB   = 0b110000; //pull-up PB5 (reset), PB4 (button)
-}
-
-static void interrupt_init()
-{
-    GIMSK |= 1 << PCIE; // enable PCINT[0:5] pin change interrupt
-    PCMSK |= 1 << PCINT4; // configure interrupt at PB4
-}
-
-static void sys_init()
-{
-    cli();
-    cpu_clock_div_8();
-    gpio_init();
-    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-    sleep_enable();
-    interrupt_init();
-    sei();
-}
-
-static uint8_t btn_state()
-{
-    return 0b010000 & PINB; //press - low, reelase - high
-}
-
-static void run()
-{
-    PORTB = 0b00000001;
-    __builtin_avr_delay_cycles(2780);
-    PORTB = 0b00000000;
-    __builtin_avr_delay_cycles(2780);
-    PORTB = 0b00000010;
-    __builtin_avr_delay_cycles(2780);
-    PORTB = 0b00000000;
-    __builtin_avr_delay_cycles(2780);
+    while((TIFR0 & (1 << OCF0A)) == 0);
+    PORTB   = output;
+    TCNT0   = 0x00; // reset counter
+    TIFR0   |= (1 << OCF0A);
 }
 
 int main()
 {
-    sys_init();
+    CLKPR   = (1 << CLKPCE);
+    CLKPR   = (1 << CLKPS1) | (1 << CLKPS0); //fCPU / 8 = 600 Khz
+
+    DDRB    = (1 << PB1) | (1 << PB0); //ouptut PB1, PB0 - TC4420s
+    PORTB   = (1 << PB5) | (1 << PB4); //pull-up PB5 (reset), PB4 (button)
+
+    TCCR0B  = (1 << WGM02) | (1 << CS01) | (1 << CS00); //CTC mode, CLK_IO / 64
+    OCR0A   = 40; // for about 50HZ output
+    TCNT0   = 0; // reset counter
 
     while(1)
     {
-        PORTB = 0b00000001;
-        __builtin_avr_delay_cycles(2780);
-        PORTB = 0b00000000;
-        __builtin_avr_delay_cycles(2780);
-        PORTB = 0b00000010;
-        __builtin_avr_delay_cycles(2780);
-        PORTB = 0b00000000;
-        __builtin_avr_delay_cycles(2780);
+        wait_period(0x00);
+        wait_period(1 << PB0);
+        wait_period(0x00);
+        wait_period(1 << PB1);
     }
-
     return 0;
 }
 
