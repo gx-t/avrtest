@@ -147,6 +147,13 @@ none:
 	avrdude -c USBASP -p t13 -U flash:w:17.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m
 	rm 17.hex
 
+18:
+	avr-gcc -mmcu=attiny13 -Wall -Os -s 18-attiny13-2450-flashlight.c -o 18.elf
+	avr-objcopy -j .text -j .data -O ihex 18.elf 18.hex
+	rm *.elf
+	avrdude -c USBASP -p t13 -U flash:w:18.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m
+	rm 18.hex
+
 client_rel:
 	gcc -O2 -Werror -s client.c -o client
 
