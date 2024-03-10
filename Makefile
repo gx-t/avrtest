@@ -141,7 +141,7 @@ none:
 	rm 16.hex
 
 16-cflow:
-	cflow --omit-arguments -i x -i ^ -f dot 16-attiny13-24v-led-control.c | dot -Tpng -o 16-attiny13-24v-led-control.png
+	cflow --omit-arguments -i x -i ^ -f dot 16-attiny13-24v-led-control.c | dot -Grankdir=LR -Tpng -o 16-attiny13-24v-led-control.png
 
 17:
 	avr-gcc -mmcu=attiny13 -Wall -Os -s 17-attiny13-tc4420-12-220-simsin-inverter.c -o 17.elf
