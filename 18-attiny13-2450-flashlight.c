@@ -12,6 +12,13 @@ ISR(PCINT0_vect)
 {
 }
 
+static uint8_t level = 1;
+
+ISR(ADC_vect)
+{
+//    level ++;
+}
+
 //ISR(WDT_vect)
 //{
 //}
@@ -66,6 +73,20 @@ static void sys_init()
 
 //    wdt_init();
 
+    //internal voltage ref., left adjust, PB2 as ADC input
+    ADMUX   = (1<<REFS0) | (1<<ADLAR) | (1<<MUX0);
+
+    //auto trigger source: Timer/Counter overflow
+    ADCSRB = 0;
+    //ADCSRB = (1<<ADTS2);
+//    ADCSRB = 0;
+
+    //disable digital input to save a power
+    DIDR0 = (1<<ADC1D);
+
+    //enable, start, auto, interrupt, clk/128
+    ADCSRA  = (1<<ADEN) | (1<<ADATE) | (1<<ADIE) | (1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0);
+
     sei();
 }
 
@@ -75,7 +96,6 @@ static void sys_init()
 //static uint8_t* eeprom_addr_mode = (uint8_t*)0;
 //static uint8_t* eeprom_addr_level = (uint8_t*)1;
 
-static uint8_t level = 1;
 static int level_up_down()
 {
     static uint8_t up = 1;
@@ -149,13 +169,19 @@ static void light_on()
 int main()
 {
     sys_init();
-    OCR0A = 1; //pwm value 1 (for testing)
-    OCR0B = 1; //pwm value 1 (for testing)
+    OCR0A = 0; //pwm value 1 (for testing)
+    OCR0B = 0; //pwm value 1 (for testing)
+
+    set_sleep_mode(SLEEP_MODE_IDLE);
+    sleep_enable();
 
     while(1)
     {
-        light_off();
-        light_on();
+        sleep_cpu();
+//        light_off();
+//        light_on();
+        OCR0A = level; //pwm value 1 (for testing)
+        OCR0B = level; //pwm value 1 (for testing)
     }
 
     return 0;

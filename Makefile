@@ -140,6 +140,9 @@ none:
 	avrdude -c USBASP -p t13 -U flash:w:16.hex -U lfuse:w:0x79:m -U hfuse:w:0xff:m -U eeprom:w:0x00,0xff:m
 	rm 16.hex
 
+16-cflow:
+	cflow --omit-arguments -i x -i ^ -f dot 16-attiny13-24v-led-control.c | dot -Tpng -o 16-attiny13-24v-led-control.png
+
 17:
 	avr-gcc -mmcu=attiny13 -Wall -Os -s 17-attiny13-tc4420-12-220-simsin-inverter.c -o 17.elf
 	avr-objcopy -j .text -j .data -O ihex 17.elf 17.hex
